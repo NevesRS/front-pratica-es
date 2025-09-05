@@ -12,6 +12,11 @@ Este repositório contém o **frontend**, implementado em **React + TypeScript**
 
 ---
 
+## 🎨 Design (Figma)
+- [Protótipo no Figma](https://figma.com/file/xxxxx)  
+
+---
+
 ## 🛠️ Stack Tecnológica
 - **Frontend:** React + TypeScript  
 - **Backend:** Python (Django + Django ORM)  
