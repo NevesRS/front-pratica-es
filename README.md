@@ -13,7 +13,7 @@ Este repositório contém o **frontend**, implementado em **React + TypeScript**
 ---
 
 ## 🎨 Design (Figma)
-- [Protótipo no Figma](https://figma.com/file/xxxxx)  
+- [Protótipo no Figma]([https://figma.com/file/xxxxx](https://www.figma.com/design/QDmfnLPvIb6KNXX4Au6vTW/Adote-aqui?node-id=0-1&p=f&t=L3NuULEprkAGR3bT-0))  
 
 ---
 
