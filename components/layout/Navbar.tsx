@@ -1,13 +1,19 @@
 import React from "react";
+import { useAuth } from "../../contexts/AuthContext";
 
 type NavbarProps = {
     isLoginView: boolean;
     onLoginClick: () => void;
     onHomeClick: () => void;
     onRegisterClick?: () => void;
+    onMyPetsClick?: () => void;
+    onSearchClick?: () => void;
+    currentPage?: 'search' | 'mypets';
 };
 
-export default function Navbar({ isLoginView, onLoginClick, onHomeClick, onRegisterClick }: NavbarProps) {
+export default function Navbar({ isLoginView, onLoginClick, onHomeClick, onRegisterClick, onMyPetsClick, onSearchClick, currentPage }: NavbarProps) {
+    const { isLoggedIn, logout } = useAuth();
+
     const navClasses = isLoginView
         ? "flex justify-between items-center p-4 bg-orange-100 border-b border-gray-300 w-full"
         : "flex justify-between items-center p-4 bg-orange-100 border-b border-gray-300 w-full";
@@ -22,32 +28,54 @@ export default function Navbar({ isLoginView, onLoginClick, onHomeClick, onRegis
                 {/* Navigation links immediately to the right of the logo */}
                 {!isLoginView && (
                     <div className="flex items-center gap-4">
-                        <span className="font-bold text-gray-800 hover:text-red-500 cursor-pointer">MEUS PETS</span>
-                        <span className="font-bold text-gray-800 hover:text-red-500 cursor-pointer">RASTREAR</span>
+                        {isLoggedIn && (
+                            <span
+                                className={`font-bold cursor-pointer border-b-2 pb-1 ${currentPage === 'mypets'
+                                    ? 'text-red-500 border-red-500'
+                                    : 'text-gray-800 hover:text-red-500 border-transparent'
+                                    }`}
+                                onClick={onMyPetsClick}
+                            >
+                                MEUS PETS
+                            </span>
+                        )}
+                        <span
+                            className={`font-bold cursor-pointer border-b-2 pb-1 ${currentPage === 'search'
+                                ? 'text-red-500 border-red-500'
+                                : 'text-gray-800 hover:text-red-500 border-transparent'
+                                }`}
+                            onClick={onSearchClick}
+                        >
+                            PESQUISAR
+                        </span>
                     </div>
                 )}
             </div>
 
             {/* Right side: actions / icons / buttons */}
             <div className="ml-auto flex items-center gap-4">
-                {isLoginView && (
-                    <div className="flex gap-4 items-center">
-                        <span className="text-xl cursor-pointer hover:opacity-80">❓</span>
-                        <span className="text-xl cursor-pointer hover:opacity-80">👤</span>
-                    </div>
-                )}
-
                 {!isLoginView && (
                     <div className="flex gap-2">
-                        <button
-                            onClick={onLoginClick}
-                            className="bg-white text-red-500 font-medium px-4 py-2 rounded-lg border border-red-500 hover:bg-red-500 hover:text-white transition duration-200"
-                        >
-                            LOGIN
-                        </button>
-                        <button onClick={onRegisterClick} className="bg-red-500 text-white font-medium px-4 py-2 rounded-lg hover:bg-red-700 transition duration-200">
-                            CADASTRAR-SE
-                        </button>
+                        {!isLoggedIn ? (
+                            <>
+                                <button
+                                    onClick={onLoginClick}
+                                    className="bg-white text-red-500 font-medium px-4 py-2 rounded-lg border border-red-500 hover:bg-red-500 hover:text-white transition duration-200"
+                                >
+                                    LOGIN
+                                </button>
+                                <button onClick={onRegisterClick} className="bg-red-500 text-white font-medium px-4 py-2 rounded-lg hover:bg-red-700 transition duration-200">
+                                    CADASTRAR-SE
+                                </button>
+                            </>
+                        ) : (
+                            <button
+                                onClick={logout}
+                                className="bg-red-500 text-white font-medium px-4 py-2 rounded-lg hover:bg-red-700 transition duration-200"
+                            >
+                                SAIR
+                            </button>
+                        )}
                     </div>
                 )}
             </div>
