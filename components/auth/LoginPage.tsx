@@ -1,22 +1,59 @@
-import React from "react";
+import React, { useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 
 type LoginPageProps = {
     onBackClick?: () => void;
     onRegisterClick?: () => void;
+    onError?: (errorMessage: string) => void;
 };
 
-export default function LoginPage({ onBackClick, onRegisterClick }: LoginPageProps) {
-    const { login } = useAuth();
+export default function LoginPage({ onBackClick, onRegisterClick, onError }: LoginPageProps) {
+    const { login, isLoading } = useAuth();
+    const [email, setEmail] = useState("");
+    const [password, setPassword] = useState("");
 
-    const handleLogin = (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
-        login();
-        if (onBackClick) {
-            onBackClick(); // Volta para a tela inicial após login
+        console.log('LoginPage: Iniciando handleLogin');
+
+        if (!email || !password) {
+            console.log('LoginPage: Campos vazios detectados');
+            const errorMsg = "Por favor, preencha todos os campos";
+            if (onError) {
+                onError(errorMsg);
+            }
+            return;
         }
-    };
-    return (
+
+        try {
+            console.log('LoginPage: Chamando login com:', { email, password: '***' });
+            await login(email, password);
+            console.log('LoginPage: Login bem-sucedido');
+            if (onBackClick) {
+                onBackClick(); // Volta para a tela inicial após login
+            }
+        } catch (error) {
+            console.error("LoginPage: Erro capturado no handleLogin:", error);
+
+            // Garantir que sempre exibimos uma mensagem de erro
+            let errorMessage = "Erro inesperado. Tente novamente.";
+
+            if (error instanceof Error) {
+                console.log('LoginPage: Erro é instância de Error, mensagem:', error.message);
+                errorMessage = error.message;
+            } else if (typeof error === 'string') {
+                console.log('LoginPage: Erro é string:', error);
+                errorMessage = error;
+            } else {
+                console.log('LoginPage: Erro é de tipo desconhecido:', typeof error, error);
+            }
+
+            console.log('LoginPage: Chamando callback de erro com:', errorMessage);
+            if (onError) {
+                onError(errorMessage);
+            }
+        }
+    }; return (
         <div className="flex-1 flex flex-col">
             {/* Header */}
             <div className="bg-white px-8 py-6 border-b border-gray-200">
@@ -36,10 +73,29 @@ export default function LoginPage({ onBackClick, onRegisterClick }: LoginPagePro
                     </div>
 
                     <form className="flex flex-col gap-4" onSubmit={handleLogin}>
-                        <input type="email" placeholder="E-MAIL" className="w-full p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500" />
-                        <input type="password" placeholder="SENHA" className="w-full p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500" />
+                        <input
+                            placeholder="E-MAIL"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"
+                            disabled={isLoading}
+                        />
+                        <input
+                            type="password"
+                            placeholder="SENHA"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"
+                            disabled={isLoading}
+                        />
 
-                        <button type="submit" className="w-full bg-red-400 text-white font-bold py-3 rounded-xl shadow-md mt-4 hover:bg-red-500 transition duration-200">ENTRAR</button>
+                        <button
+                            type="submit"
+                            disabled={isLoading}
+                            className="w-full bg-red-400 text-white font-bold py-3 rounded-xl shadow-md mt-4 hover:bg-red-500 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {isLoading ? "ENTRANDO..." : "ENTRAR"}
+                        </button>
                     </form>
 
                     {onBackClick && (

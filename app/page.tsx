@@ -6,12 +6,13 @@ import FilterItem from "../components/filters/FilterItem";
 import PetCard from "../components/pets/PetCard";
 import LoginPage from "../components/auth/LoginPage";
 import { RegisterForm } from "../components/auth/RegisterForm";
-import { AuthProvider } from "../contexts/AuthContext";
+import { AuthProvider, useAuth } from "../contexts/AuthContext";
 import PetDetailsModal, { PetDetails } from "../components/pets/PetDetailsModal";
 import MyPetsPage from "../components/pets/MyPetsPage";
 import { PetRegisterForm } from "../components/pets/PetRegisterForm";
 import PetTrackingModal, { PetTracking, getMockTracking } from "../components/pets/PetTrackingModal";
 import { UserPet } from "../components/pets/MyPetsPage";
+import ErrorScreen from "../components/auth/ErrorScreen";
 
 // -----------------------------------------------------------
 // 1. DADOS DE EXEMPLO
@@ -100,12 +101,18 @@ const pets: PetDetails[] = [
 // 4. COMPONENTE PRINCIPAL (Home) - SWITCH DE TELAS
 // -----------------------------------------------------------
 
-export default function Home() {
+function HomeContent() {
+    const { isLoading } = useAuth();
+
     // Estado para controlar qual tela está visível
     const [isLoginView, setIsLoginView] = useState(false);
     const [isRegisterView, setIsRegisterView] = useState(false);
     const [isMyPetsView, setIsMyPetsView] = useState(false);
     const [isPetRegisterView, setIsPetRegisterView] = useState(false);
+
+    // Estado para controlar a tela de erro
+    const [isErrorView, setIsErrorView] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
 
     // Estado para controlar o modal
     const [selectedPet, setSelectedPet] = useState<PetDetails | null>(null);
@@ -114,6 +121,18 @@ export default function Home() {
     // Estado para controlar o modal de rastreamento
     const [selectedUserPet, setSelectedUserPet] = useState<UserPet | null>(null);
     const [isTrackingModalOpen, setIsTrackingModalOpen] = useState(false);
+
+    // Componente de loading
+    if (isLoading) {
+        return (
+            <div className="bg-gray-50 min-h-screen flex items-center justify-center">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-red-400 mx-auto mb-4"></div>
+                    <p className="text-gray-600 text-lg">Carregando...</p>
+                </div>
+            </div>
+        );
+    }
 
     // Função para mostrar a tela de Login
     const handleLoginClick = () => {
@@ -167,6 +186,23 @@ export default function Home() {
         setIsMyPetsView(false);
         setIsRegisterView(false);
         setIsPetRegisterView(false);
+        setIsErrorView(false);
+    };
+
+    // Função para lidar com erros de login
+    const handleLoginError = (error: string) => {
+        console.log('HomeContent: Erro de login recebido:', error);
+        setErrorMessage(error);
+        setIsErrorView(true);
+        setIsLoginView(false);
+    };
+
+    // Função para voltar do erro para o login
+    const handleRetryLogin = () => {
+        console.log('HomeContent: Voltando do erro para login');
+        setIsErrorView(false);
+        setIsLoginView(true);
+        setErrorMessage('');
     };
 
     // Funções para gerenciar o modal
@@ -193,120 +229,138 @@ export default function Home() {
 
 
     return (
-        <AuthProvider>
-            <div className="bg-gray-50 min-h-screen text-gray-900 flex flex-col">
-                {/* Alterna entre as views */}
-                {isPetRegisterView ? (
-                    <PetRegisterForm onBackClick={handleBackFromPetRegister} />
-                ) : isMyPetsView ? (
-                    <>
-                        {/* Navbar também na tela Meus Pets */}
-                        <Navbar
-                            isLoginView={false}
-                            onLoginClick={handleLoginClick}
-                            onHomeClick={handleHomeClick}
+        <div className="bg-gray-50 min-h-screen text-gray-900 flex flex-col">
+            {/* Alterna entre as views */}
+            {isPetRegisterView ? (
+                <PetRegisterForm onBackClick={handleBackFromPetRegister} />
+            ) : isMyPetsView ? (
+                <>
+                    {/* Navbar também na tela Meus Pets */}
+                    <Navbar
+                        isLoginView={false}
+                        onLoginClick={handleLoginClick}
+                        onHomeClick={handleHomeClick}
+                        onRegisterClick={handleRegisterClick}
+                        onMyPetsClick={handleMyPetsClick}
+                        onSearchClick={handleSearchClick}
+                        currentPage="mypets"
+                        onLogoutCallback={handleHomeClick}
+                    />
+                    <MyPetsPage
+                        onBackClick={handleSearchClick}
+                        onAddPetClick={handlePetRegisterClick}
+                        onEditPet={handleUserPetClick}
+                    />
+                </>
+            ) : isErrorView ? (
+                <ErrorScreen
+                    errorMessage={errorMessage}
+                    onRetry={handleRetryLogin}
+                    autoReturnDelay={4000}
+                />
+            ) : (
+                <>
+                    {isRegisterView ? (
+                        <RegisterForm onBackClick={handleBackFromRegister} />
+                    ) : isLoginView ? (
+                        <LoginPage
+                            onBackClick={handleHomeClick}
                             onRegisterClick={handleRegisterClick}
-                            onMyPetsClick={handleMyPetsClick}
-                            onSearchClick={handleSearchClick}
-                            currentPage="mypets"
+                            onError={handleLoginError}
                         />
-                        <MyPetsPage
-                            onBackClick={handleSearchClick}
-                            onAddPetClick={handlePetRegisterClick}
-                            onEditPet={handleUserPetClick}
-                        />
-                    </>
-                ) : (
-                    <>
-                        {isRegisterView ? (
-                            <RegisterForm onBackClick={handleBackFromRegister} />
-                        ) : isLoginView ? (
-                            <LoginPage onBackClick={handleHomeClick} onRegisterClick={handleRegisterClick} />
-                        ) : (
-                            <>
-                                {/* 💡 A Navbar agora recebe as funções de clique e o estado para se adaptar */}
-                                <Navbar
-                                    isLoginView={isLoginView}
-                                    onLoginClick={handleLoginClick}
-                                    onHomeClick={handleHomeClick}
-                                    onRegisterClick={handleRegisterClick}
-                                    onMyPetsClick={handleMyPetsClick}
-                                    onSearchClick={handleSearchClick}
-                                    currentPage="search"
-                                />
+                    ) : (
+                        <>
+                            {/* 💡 A Navbar agora recebe as funções de clique e o estado para se adaptar */}
+                            <Navbar
+                                isLoginView={isLoginView}
+                                onLoginClick={handleLoginClick}
+                                onHomeClick={handleHomeClick}
+                                onRegisterClick={handleRegisterClick}
+                                onMyPetsClick={handleMyPetsClick}
+                                onSearchClick={handleSearchClick}
+                                currentPage="search"
+                                onLogoutCallback={handleHomeClick}
+                            />
 
-                                {/* Header da página inicial */}
-                                <div className="bg-white px-8 py-6 border-b border-gray-200">
-                                    <h1 className="text-3xl font-bold text-gray-900">PESQUISAR PETS</h1>
-                                </div>
+                            {/* Header da página inicial */}
+                            <div className="bg-white px-8 py-6 border-b border-gray-200">
+                                <h1 className="text-3xl font-bold text-gray-900">PESQUISAR PETS</h1>
+                            </div>
 
-                                <div className="container mx-auto p-8 flex gap-8 flex-1">
-                                    {/* Barra Lateral de Filtros */}
-                                    <aside className="w-1/4 p-6 bg-white rounded-lg shadow-md border border-gray-300">
-                                        <h2 className="text-xl font-bold mb-4">FILTRAR PETS</h2>
-                                        <FilterItem label="ESPÉCIE" />
-                                        <FilterItem label="CEP" />
-                                        <FilterItem label="RAÇA" />
-                                        <FilterItem label="PORTE" />
-                                        <FilterItem label="SEXO" />
+                            <div className="container mx-auto p-8 flex gap-8 flex-1">
+                                {/* Barra Lateral de Filtros */}
+                                <aside className="w-1/4 p-6 bg-white rounded-lg shadow-md border border-gray-300">
+                                    <h2 className="text-xl font-bold mb-4">FILTRAR PETS</h2>
+                                    <FilterItem label="ESPÉCIE" />
+                                    <FilterItem label="CEP" />
+                                    <FilterItem label="RAÇA" />
+                                    <FilterItem label="PORTE" />
+                                    <FilterItem label="SEXO" />
 
-                                        <div className="mt-6 flex flex-col gap-2">
-                                            <button className="w-full bg-red-500 text-white py-2 rounded-lg font-bold transform transition duration-200 ease-in-out hover:bg-red-600 hover:scale-105">
-                                                FILTRAR
-                                            </button>
-                                            <button className="w-full bg-gray-200 text-gray-800 py-2 rounded-lg font-bold transform transition duration-200 ease-in-out hover:bg-gray-300 hover:scale-105">
-                                                LIMPAR FILTROS
-                                            </button>
-                                        </div>
-                                    </aside>
+                                    <div className="mt-6 flex flex-col gap-2">
+                                        <button className="w-full bg-red-500 text-white py-2 rounded-lg font-bold transform transition duration-200 ease-in-out hover:bg-red-600 hover:scale-105">
+                                            FILTRAR
+                                        </button>
+                                        <button className="w-full bg-gray-200 text-gray-800 py-2 rounded-lg font-bold transform transition duration-200 ease-in-out hover:bg-gray-300 hover:scale-105">
+                                            LIMPAR FILTROS
+                                        </button>
+                                    </div>
+                                </aside>
 
-                                    {/* Área de Conteúdo Principal */}
-                                    <main className="flex-1">
-                                        {/* Barra de Pesquisa */}
-                                        <div className="mb-8 flex items-center bg-white p-2 rounded-lg shadow-md border border-gray-300">
-                                            <input
-                                                type="text"
-                                                placeholder="Pesquisar..."
-                                                className="flex-1 p-2 focus:outline-none"
+                                {/* Área de Conteúdo Principal */}
+                                <main className="flex-1">
+                                    {/* Barra de Pesquisa */}
+                                    <div className="mb-8 flex items-center bg-white p-2 rounded-lg shadow-md border border-gray-300">
+                                        <input
+                                            type="text"
+                                            placeholder="Pesquisar..."
+                                            className="flex-1 p-2 focus:outline-none"
+                                        />
+                                        <span className="p-2 cursor-pointer rounded hover:bg-gray-100 transition-colors duration-150">
+                                            🔍
+                                        </span>
+                                    </div>
+
+                                    {/* Grid de Cartões de Animais */}
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                        {pets.map((pet) => (
+                                            <PetCard
+                                                key={pet.id}
+                                                name={pet.name}
+                                                location={pet.location}
+                                                imageUrl={pet.imageUrl}
+                                                onClick={() => handlePetClick(pet)}
                                             />
-                                            <span className="p-2 cursor-pointer rounded hover:bg-gray-100 transition-colors duration-150">
-                                                🔍
-                                            </span>
-                                        </div>
+                                        ))}
+                                    </div>
+                                </main>
+                            </div>
+                        </>
+                    )}
+                </>
+            )}
 
-                                        {/* Grid de Cartões de Animais */}
-                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                            {pets.map((pet) => (
-                                                <PetCard
-                                                    key={pet.id}
-                                                    name={pet.name}
-                                                    location={pet.location}
-                                                    imageUrl={pet.imageUrl}
-                                                    onClick={() => handlePetClick(pet)}
-                                                />
-                                            ))}
-                                        </div>
-                                    </main>
-                                </div>
-                            </>
-                        )}
-                    </>
-                )}
+            {/* Modal de detalhes do pet */}
+            <PetDetailsModal
+                isOpen={isModalOpen}
+                onClose={handleCloseModal}
+                pet={selectedPet}
+            />
 
-                {/* Modal de detalhes do pet */}
-                <PetDetailsModal
-                    isOpen={isModalOpen}
-                    onClose={handleCloseModal}
-                    pet={selectedPet}
-                />
+            {/* Modal de rastreamento do pet */}
+            <PetTrackingModal
+                isOpen={isTrackingModalOpen}
+                onClose={handleCloseTrackingModal}
+                petTracking={selectedUserPet ? getMockTracking(selectedUserPet) : null}
+            />
+        </div>
+    );
+}
 
-                {/* Modal de rastreamento do pet */}
-                <PetTrackingModal
-                    isOpen={isTrackingModalOpen}
-                    onClose={handleCloseTrackingModal}
-                    petTracking={selectedUserPet ? getMockTracking(selectedUserPet) : null}
-                />
-            </div>
+export default function Home() {
+    return (
+        <AuthProvider>
+            <HomeContent />
         </AuthProvider>
     );
 }

@@ -1,11 +1,57 @@
 // components/auth/RegisterForm.tsx
-import React from 'react';
+import React, { useState } from 'react';
+import ErrorPopup from '../ui/ErrorPopup';
 
 interface RegisterFormProps {
     onBackClick: () => void;
 }
 
 export const RegisterForm: React.FC<RegisterFormProps> = ({ onBackClick }) => {
+    const [formData, setFormData] = useState({
+        cep: '',
+        name: '',
+        phone: '',
+        email: '',
+        password: ''
+    });
+    const [error, setError] = useState('');
+    const [showErrorPopup, setShowErrorPopup] = useState(false);
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({
+            ...prev,
+            [name]: value
+        }));
+    };
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        setError('');
+        setShowErrorPopup(false);
+
+        // Validação básica
+        if (!formData.cep || !formData.name || !formData.phone || !formData.email || !formData.password) {
+            setError('Por favor, preencha todos os campos obrigatórios.');
+            setShowErrorPopup(true);
+            return;
+        }
+
+        if (!formData.email.includes('@')) {
+            setError('Por favor, insira um e-mail válido.');
+            setShowErrorPopup(true);
+            return;
+        }
+
+        if (formData.password.length < 6) {
+            setError('A senha deve ter pelo menos 6 caracteres.');
+            setShowErrorPopup(true);
+            return;
+        }
+
+        // Aqui você pode implementar a lógica de cadastro
+        console.log('Dados do formulário:', formData);
+    };
     return (
         <div className="flex-1 flex flex-col">
             {/* Header */}
@@ -39,12 +85,47 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onBackClick }) => {
                     {/* Lado Direito - Formulário de Cadastro (50% ou w-3/5) */}
                     <div className="w-3/5 p-8">
                         <h2 className="text-2xl font-bold mb-8 text-gray-800">FAÇA SEU CADASTRO</h2>
-                        <form className="flex flex-col gap-4">
-                            <input type="text" placeholder="CEP" className="w-full p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500" />
-                            <input type="text" placeholder="NOME COMPLETO" className="w-full p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500" />
-                            <input type="tel" placeholder="TELEFONE" className="w-full p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500" />
-                            <input type="email" placeholder="E-MAIL" className="w-full p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500" />
-                            <input type="password" placeholder="DEFINIR SENHA" className="w-full p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500" />
+                        <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+                            <input
+                                type="text"
+                                name="cep"
+                                placeholder="CEP"
+                                value={formData.cep}
+                                onChange={handleInputChange}
+                                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"
+                            />
+                            <input
+                                type="text"
+                                name="name"
+                                placeholder="NOME COMPLETO"
+                                value={formData.name}
+                                onChange={handleInputChange}
+                                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"
+                            />
+                            <input
+                                type="tel"
+                                name="phone"
+                                placeholder="TELEFONE"
+                                value={formData.phone}
+                                onChange={handleInputChange}
+                                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"
+                            />
+                            <input
+                                type="email"
+                                name="email"
+                                placeholder="E-MAIL"
+                                value={formData.email}
+                                onChange={handleInputChange}
+                                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"
+                            />
+                            <input
+                                type="password"
+                                name="password"
+                                placeholder="DEFINIR SENHA"
+                                value={formData.password}
+                                onChange={handleInputChange}
+                                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"
+                            />
 
                             <p className="text-xs text-gray-600 mt-2">
                                 Ao se cadastrar, você concorda com os <a href="#" className="underline font-medium text-red-500 hover:text-red-700">termos de serviço</a>
@@ -58,6 +139,18 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onBackClick }) => {
 
                 </div>
             </div>
+
+            {/* Error Popup */}
+            <ErrorPopup
+                isVisible={showErrorPopup}
+                message={error}
+                onClose={() => {
+                    setShowErrorPopup(false);
+                    setError('');
+                }}
+                autoClose={true}
+                autoCloseDelay={5000}
+            />
         </div>
     );
 }

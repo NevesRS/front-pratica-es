@@ -9,10 +9,23 @@ type NavbarProps = {
     onMyPetsClick?: () => void;
     onSearchClick?: () => void;
     currentPage?: 'search' | 'mypets';
+    onLogoutCallback?: () => void;
 };
 
-export default function Navbar({ isLoginView, onLoginClick, onHomeClick, onRegisterClick, onMyPetsClick, onSearchClick, currentPage }: NavbarProps) {
+export default function Navbar({ isLoginView, onLoginClick, onHomeClick, onRegisterClick, onMyPetsClick, onSearchClick, currentPage, onLogoutCallback }: NavbarProps) {
     const { isLoggedIn, logout } = useAuth();
+
+    const handleLogout = () => {
+        console.log('Navbar: Executando logout');
+        logout(() => {
+            console.log('Navbar: Callback de logout executado, redirecionando para home');
+            if (onLogoutCallback) {
+                onLogoutCallback();
+            } else {
+                onHomeClick(); // Fallback para voltar ao home
+            }
+        });
+    };
 
     const navClasses = isLoginView
         ? "flex justify-between items-center p-4 bg-orange-100 border-b border-gray-300 w-full"
@@ -70,7 +83,7 @@ export default function Navbar({ isLoginView, onLoginClick, onHomeClick, onRegis
                             </>
                         ) : (
                             <button
-                                onClick={logout}
+                                onClick={handleLogout}
                                 className="bg-red-500 text-white font-medium px-4 py-2 rounded-lg hover:bg-red-700 transition duration-200"
                             >
                                 SAIR
