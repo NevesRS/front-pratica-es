@@ -1,4 +1,6 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
+import { petService, Pet } from "@/services/petService";
+import { authService } from "@/services/authService";
 
 // Tipo para os dados do pet do usuário
 export type UserPet = {
@@ -14,7 +16,6 @@ export type UserPet = {
     veterinaryCare?: string;
     livesWellWith?: string;
     socialWith?: string;
-    cep?: string;
     age?: string;
     // Campos para compatibilidade com PetDetails
     type?: string; // Tipo do animal (Cachorro, Gato, etc.)
@@ -32,115 +33,86 @@ type MyPetsPageProps = {
     onEditPet?: (pet: UserPet) => void;
 };
 
-// Dados mock dos pets do usuário logado
-const userPets: UserPet[] = [
-    {
-        id: 1,
-        name: "CHESTER",
-        breed: "GOLDEN",
-        gender: "MACHO",
-        size: "PEQUENO",
-        location: "PORTO ALEGRE - RS",
-        imageUrl: "https://images.unsplash.com/photo-1548247425-a6e54f979145?w=500&auto=format&fit=crop",
-        temperament: "Dócil, Brincalhão",
-        veterinaryCare: "Castrado, Vacinado",
-        livesWellWith: "Casa com quintal",
-        socialWith: "Crianças, Outros cães",
-        cep: "90010-000",
-        age: "1 ano",
-        type: "Cachorro",
-        description: "Chester é um Golden Retriever muito especial que foi resgatado ainda filhote. Ele adora brincar e é muito carinhoso com crianças. Tem muita energia e precisa de exercícios diários, mas também ama momentos de carinho no sofá.",
-        contact: {
-            name: "Maria Santos",
-            email: "maria.santos@email.com",
-            phone: "51 99876-5432"
-        }
-    },
-    {
-        id: 2,
-        name: "LUNA",
-        breed: "SRD",
-        gender: "FÊMEA",
-        size: "MÉDIO",
-        location: "PORTO ALEGRE - RS",
-        imageUrl: "https://images.unsplash.com/photo-1548247425-a6e54f979145?w=500&auto=format&fit=crop",
-        temperament: "Carinhosa, Independente",
-        veterinaryCare: "Castrada, Vacinada",
-        livesWellWith: "Apartamento",
-        socialWith: "Crianças, Outros gatos",
-        cep: "90020-000",
-        age: "2 anos",
-        type: "Gato",
-        description: "Luna é uma gatinha muito especial que foi encontrada ainda pequena. É muito carinhosa mas também independente, perfeita para quem busca um companheiro tranquilo e afetuoso.",
-        contact: {
-            name: "João Silva",
-            email: "joao.silva@email.com",
-            phone: "51 98765-4321"
-        }
-    },
-    {
-        id: 3,
-        name: "BUDDY",
-        breed: "LABRADOR",
-        gender: "MACHO",
-        size: "GRANDE",
-        location: "CANOAS - RS",
-        imageUrl: "https://images.unsplash.com/photo-1560700055-a0c5c4e7436b?w=500&auto=format&fit=crop",
-        temperament: "Energético, Leal",
-        veterinaryCare: "Castrado, Vacinado, Vermifugado",
-        livesWellWith: "Casa com quintal grande",
-        socialWith: "Crianças, Adultos, Outros cães",
-        cep: "92010-000",
-        age: "3 anos"
-    },
-    {
-        id: 4,
-        name: "MIMI",
-        breed: "PERSA",
-        gender: "FÊMEA",
-        size: "PEQUENO",
-        location: "PORTO ALEGRE - RS",
-        imageUrl: "https://images.unsplash.com/photo-1548247425-a6e54f979145?w=500&auto=format&fit=crop",
-        temperament: "Calma, Carinhosa",
-        veterinaryCare: "Castrada, Vacinada",
-        livesWellWith: "Apartamento tranquilo",
-        socialWith: "Adultos, Ambiente calmo",
-        cep: "90030-000",
-        age: "5 anos"
-    },
-    {
-        id: 5,
-        name: "THOR",
-        breed: "PASTOR ALEMÃO",
-        gender: "MACHO",
-        size: "GRANDE",
-        location: "PORTO ALEGRE - RS",
-        imageUrl: "https://images.unsplash.com/photo-1548247425-a6e54f979145?w=500&auto=format&fit=crop",
-        temperament: "Protetor, Inteligente",
-        veterinaryCare: "Castrado, Vacinado, Adestrado",
-        livesWellWith: "Casa com quintal",
-        socialWith: "Família, Crianças maiores",
-        cep: "90040-000",
-        age: "4 anos"
-    },
-    {
-        id: 6,
-        name: "BELLA",
-        breed: "YORKSHIRE",
-        gender: "FÊMEA",
-        size: "PEQUENO",
-        location: "PORTO ALEGRE - RS",
-        imageUrl: "https://images.unsplash.com/photo-1548247425-a6e54f979145?w=500&auto=format&fit=crop",
-        temperament: "Esperta, Afetuosa",
-        veterinaryCare: "Castrada, Vacinada",
-        livesWellWith: "Apartamento ou casa",
-        socialWith: "Toda a família",
-        cep: "90050-000",
-        age: "2 anos"
-    }
-];
-
 export default function MyPetsPage({ onBackClick, onAddPetClick, onEditPet }: MyPetsPageProps) {
+    const [pets, setPets] = useState<UserPet[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string>('');
+
+    useEffect(() => {
+        loadUserPets();
+    }, []);
+
+    const loadUserPets = async () => {
+        try {
+            setLoading(true);
+            setError('');
+
+            // Obter ID do usuário logado
+            const userId = authService.getUserIdFromToken();
+
+            if (!userId) {
+                setError('Você precisa estar logado para ver seus pets');
+                setLoading(false);
+                return;
+            }
+
+            // Buscar pets do usuário
+            const userPetsData = await petService.getPetsByTutor(userId);
+
+            // Converter formato da API para formato do componente
+            const convertedPets: UserPet[] = userPetsData.map(pet => {
+                // Mapear idade
+                const ageMap: Record<number, string> = {
+                    1: "FILHOTE",
+                    2: "ADULTO",
+                    3: "IDOSO",
+                    4: "INDIFERENTE"
+                };
+
+                // Mapear porte
+                const sizeMap: Record<number, string> = {
+                    1: "PEQUENO",
+                    2: "MÉDIO",
+                    3: "GRANDE",
+                    4: "MUITO GRANDE"
+                };
+
+                // Mapear sexo
+                const genderMap: Record<number, string> = {
+                    1: "MACHO",
+                    2: "FÊMEA"
+                };
+
+                return {
+                    id: pet.id_pet,
+                    name: pet.nome.toUpperCase(),
+                    breed: pet.raca ? `${pet.raca}` : "SRD",
+                    gender: genderMap[pet.sexo || 0] || "DESCONHECIDO",
+                    size: sizeMap[Number(pet.porte)] || "DESCONHECIDO",
+                    location: "",
+                    imageUrl: pet.foto || "",
+                    age: ageMap[pet.idade] || "DESCONHECIDO",
+                    type: pet.especie === 3 ? "Cachorro" : "Gato",
+                    description: pet.descricao || "",
+                    temperament: pet.amigavel_outros_animais ? "Amigável com outros animais" : "Prefere estar sozinho",
+                    veterinaryCare: [
+                        pet.doenca_cronica && "Possui doença crônica",
+                        pet.cuidados_constantes && "Requer cuidados constantes"
+                    ].filter(Boolean).join(", ") || "Saudável",
+                    livesWellWith: pet.cuidados_constantes ? "Ambiente com atenção especial" : "Ambiente adaptável",
+                    socialWith: pet.necessidades_especiais ? "Necessita atenção especial" : "Sociável"
+                };
+            });
+
+            setPets(convertedPets);
+        } catch (error: any) {
+            console.error('Erro ao buscar pets do usuário:', error);
+            setError(error.message || 'Erro ao carregar seus pets');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     return (
         <div className="bg-gray-50 min-h-screen">
             {/* Conteúdo principal */}
@@ -156,35 +128,50 @@ export default function MyPetsPage({ onBackClick, onAddPetClick, onEditPet }: My
                     </button>
                 </div>
 
+                {/* Estado de carregamento */}
+                {loading && (
+                    <div className="text-center py-8">
+                        <p className="text-gray-600">Carregando seus pets...</p>
+                    </div>
+                )}
+
+                {/* Estado de erro */}
+                {error && (
+                    <div className="text-center py-8">
+                        <p className="text-red-600">{error}</p>
+                    </div>
+                )}
+
                 {/* Grid de pets */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {userPets.map((pet) => (
-                        <div
-                            key={pet.id}
-                            className="bg-white rounded-2xl p-4 shadow-lg border-4 border-red-300 hover:shadow-xl transition duration-200 cursor-pointer"
-                            onClick={() => onEditPet?.(pet)}
-                        >
-                            <div className="flex gap-4">
-                                {/* Imagem do pet */}
-                                <div className="w-32 h-32 bg-gray-200 rounded-xl flex items-center justify-center text-gray-500 flex-shrink-0">
-                                    <span className="text-sm">Imagem</span>
-                                </div>
+                {!loading && !error && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {pets.map((pet) => (
+                            <div
+                                key={pet.id}
+                                className="bg-white rounded-2xl p-4 shadow-lg border-4 border-red-300 hover:shadow-xl transition duration-200 cursor-pointer"
+                                onClick={() => onEditPet?.(pet)}
+                            >
+                                <div className="flex gap-4">
+                                    {/* Imagem do pet */}
+                                    <div className="w-32 h-32 bg-gray-200 rounded-xl flex items-center justify-center text-gray-500 flex-shrink-0">
+                                        <span className="text-sm">Imagem</span>
+                                    </div>
 
-                                {/* Informações do pet */}
-                                <div className="flex-1 space-y-1">
-                                    <h3 className="font-bold text-lg text-gray-900">NOME: {pet.name}</h3>
+                                    {/* Informações do pet */}
+                                    <div className="flex-1 space-y-1">
+                                        <h3 className="font-bold text-lg text-gray-900">NOME: {pet.name}</h3>
 
-                                    <div className="space-y-1 text-sm text-gray-800">
-                                        <div><span className="font-medium">RAÇA:</span> {pet.breed}</div>
-                                        <div><span className="font-medium">SEXO:</span> {pet.gender}</div>
-                                        <div><span className="font-medium">PORTE:</span> {pet.size}</div>
-                                        <div><span className="font-medium">CEP:</span> {pet.location}</div>
+                                        <div className="space-y-1 text-sm text-gray-800">
+                                            <div><span className="font-medium">RAÇA:</span> {pet.breed}</div>
+                                            <div><span className="font-medium">SEXO:</span> {pet.gender}</div>
+                                            <div><span className="font-medium">PORTE:</span> {pet.size}</div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    ))}
-                </div>
+                        ))}
+                    </div>
+                )}
             </div>
         </div>
     );

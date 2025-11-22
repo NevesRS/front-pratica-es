@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState } from "react"; // Precisamos do useState para alternar entre as telas
+import React, { useState, useEffect } from "react";
 import Navbar from "../components/layout/Navbar";
 import FilterItem from "../components/filters/FilterItem";
+import FilterItemRaca from "../components/filters/FilterItemRaca";
 import PetCard from "../components/pets/PetCard";
 import LoginPage from "../components/auth/LoginPage";
 import { RegisterForm } from "../components/auth/RegisterForm";
@@ -10,86 +11,11 @@ import { AuthProvider, useAuth } from "../contexts/AuthContext";
 import PetDetailsModal, { PetDetails } from "../components/pets/PetDetailsModal";
 import MyPetsPage from "../components/pets/MyPetsPage";
 import { PetRegisterForm } from "../components/pets/PetRegisterForm";
-import PetTrackingModal, { PetTracking, getMockTracking } from "../components/pets/PetTrackingModal";
+import PetTrackingModal from "../components/pets/PetTrackingModal";
 import { UserPet } from "../components/pets/MyPetsPage";
 import ErrorScreen from "../components/auth/ErrorScreen";
-
-// -----------------------------------------------------------
-// 1. DADOS DE EXEMPLO
-// -----------------------------------------------------------
-
-// Numa aplicação real, estes dados viriam de uma API ou base de dados.
-const pets: PetDetails[] = [
-    {
-        id: 1,
-        name: "CHESTER",
-        location: "PORTO ALEGRE - RS",
-        imageUrl: "https://images.unsplash.com/photo-1548247425-a6e54f979145?w=500&auto=format&fit=crop",
-        type: "Cachorro",
-        breed: "GOLDEN",
-        gender: "MACHO",
-        size: "PEQUENO",
-        age: "1 ano",
-        description: "Chester é um Golden Retriever de 1 ano, cheio de energia e carinho. Mora em Porto Alegre, RS e adora brincar de bolinha, correr no parque e estar perto das pessoas. De porte pequeno, já está castrado e vacinado, pronto para ser o melhor amigo de alguém que queira um companheiro fiel e alegre.",
-        contact: {
-            name: "Igor Ponticelli",
-            email: "igor@email.com",
-            phone: "51 91234-5678"
-        },
-        characteristics: {
-            veterinaryCare: "Castrado",
-            temperament: "Dócil, Brincalhão",
-            socialWith: "Crianças, Desconhecidos",
-            livesWellWith: "Casa com quintal"
-        }
-    },
-    {
-        id: 2,
-        name: "LUNA",
-        location: "GRAVATAI, RS",
-        imageUrl: "https://images.unsplash.com/photo-1616886477817-48f572418a09?w=500&auto=format&fit=crop",
-        type: "Gato",
-        breed: "SRD",
-        gender: "FÊMEA",
-        size: "MÉDIO",
-        age: "2 anos",
-        description: "Luna é uma gatinha muito carinhosa e independente. Adora ficar no sol e brincar com bolinhas de papel. É muito sociável e se dá bem com outros gatos.",
-        contact: {
-            name: "Maria Silva",
-            email: "maria@email.com",
-            phone: "51 98765-4321"
-        },
-        characteristics: {
-            veterinaryCare: "Castrada, Vacinada",
-            temperament: "Carinhosa, Independente",
-            socialWith: "Outros gatos, Adultos",
-            livesWellWith: "Apartamento"
-        }
-    },
-    {
-        id: 3,
-        name: "MAX",
-        location: "CANOAS, RS",
-        imageUrl: "https://images.unsplash.com/photo-1560700055-a0c5c4e7436b?w=500&auto=format&fit=crop",
-        type: "Cachorro",
-        breed: "LABRADOR",
-        gender: "MACHO",
-        size: "GRANDE",
-        age: "3 anos",
-        description: "Max é um Labrador muito energético e leal. Adora nadar e buscar objetos. É perfeito para famílias ativas.",
-        contact: {
-            name: "João Santos",
-            email: "joao@email.com",
-            phone: "51 99888-7777"
-        },
-        characteristics: {
-            veterinaryCare: "Castrado, Vacinado",
-            temperament: "Energético, Leal",
-            socialWith: "Crianças, Outros cães",
-            livesWellWith: "Casa com quintal grande"
-        }
-    }
-];
+import { petService, Pet } from "../services/petService";
+import HeuristicPage from "../components/pets/HeuristicPage";
 
 // -----------------------------------------------------------
 // 2. COMPONENTES REUTILIZÁVEIS
@@ -109,18 +35,85 @@ function HomeContent() {
     const [isRegisterView, setIsRegisterView] = useState(false);
     const [isMyPetsView, setIsMyPetsView] = useState(false);
     const [isPetRegisterView, setIsPetRegisterView] = useState(false);
+    const [isHeuristicView, setIsHeuristicView] = useState(false);
 
     // Estado para controlar a tela de erro
     const [isErrorView, setIsErrorView] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
 
+    // Estado para os pets da API
+    const [pets, setPets] = useState<Pet[]>([]);
+    const [petsLoading, setPetsLoading] = useState(false);
+    const [petsError, setPetsError] = useState<string | null>(null);
+
+    // Estado para busca
+    const [searchTerm, setSearchTerm] = useState('');
+    const [filteredPets, setFilteredPets] = useState<Pet[]>([]);
+
+    // Estado para filtros
+    const [filters, setFilters] = useState({
+        especie: '',
+        raca: '',
+        porte: '',
+        sexo: ''
+    });
+
     // Estado para controlar o modal
     const [selectedPet, setSelectedPet] = useState<PetDetails | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isModalLoading, setIsModalLoading] = useState(false);
 
     // Estado para controlar o modal de rastreamento
     const [selectedUserPet, setSelectedUserPet] = useState<UserPet | null>(null);
     const [isTrackingModalOpen, setIsTrackingModalOpen] = useState(false);
+
+    // Buscar pets ao carregar a página
+    useEffect(() => {
+        loadPets();
+    }, []);
+
+    // Recarregar pets quando filtros mudarem
+    useEffect(() => {
+        loadPets();
+    }, [filters]);
+
+    // Filtrar pets quando o termo de busca ou a lista de pets mudar
+    useEffect(() => {
+        if (searchTerm.trim() === '') {
+            setFilteredPets(pets);
+        } else {
+            const filtered = pets.filter(pet =>
+                pet.nome.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+            setFilteredPets(filtered);
+        }
+    }, [searchTerm, pets]);
+
+    const loadPets = async () => {
+        try {
+            setPetsLoading(true);
+            setPetsError(null);
+
+            // Construir query params baseados nos filtros
+            const params = new URLSearchParams();
+            if (filters.especie) params.append('especie', filters.especie);
+            if (filters.raca) params.append('raca', filters.raca);
+            if (filters.porte) params.append('porte', filters.porte);
+            if (filters.sexo) params.append('sexo', filters.sexo);
+
+            const queryString = params.toString();
+            const url = queryString ? `?${queryString}` : '';
+
+            const data = await petService.getPetsWithFilters(url);
+            setPets(data);
+            setFilteredPets(data);
+        } catch (error: any) {
+            console.error('Erro ao buscar pets:', error);
+            setPetsError(error.message || 'Erro ao carregar pets');
+        } finally {
+            setPetsLoading(false);
+        }
+    };
 
     // Componente de loading
     if (isLoading) {
@@ -187,6 +180,17 @@ function HomeContent() {
         setIsRegisterView(false);
         setIsPetRegisterView(false);
         setIsErrorView(false);
+        setIsHeuristicView(false);
+    };
+
+    // Função para mostrar a tela de sugestões
+    const handleHeuristicClick = () => {
+        setIsHeuristicView(true);
+        setIsLoginView(false);
+        setIsMyPetsView(false);
+        setIsRegisterView(false);
+        setIsPetRegisterView(false);
+        setIsErrorView(false);
     };
 
     // Função para lidar com erros de login
@@ -206,14 +210,92 @@ function HomeContent() {
     };
 
     // Funções para gerenciar o modal
-    const handlePetClick = (pet: PetDetails) => {
-        setSelectedPet(pet);
+    const handlePetClick = async (pet: Pet | number) => {
+        // Validar se pet existe
+        if (!pet) {
+            console.error('Pet inválido recebido');
+            return;
+        }
+
+        // Abre o modal imediatamente com loading
         setIsModalOpen(true);
+        setIsModalLoading(true);
+        setSelectedPet(null);
+
+        try {
+            // Se receber um número, é o ID do pet; se for objeto Pet, pegar o id_pet
+            const petId = typeof pet === 'number' ? pet : pet.id_pet;
+            // Preservar o score se vier de um objeto Pet
+            const petScore = typeof pet === 'object' && pet.score !== undefined ? pet.score : undefined;
+
+            // Buscar detalhes completos do pet
+            const petDetails = await petService.getPetById(petId);
+
+            // Converter o formato da API para o formato do modal
+            const petForModal: PetDetails = {
+                id: petDetails.id_pet,
+                name: petDetails.nome.toUpperCase(),
+                location: "RS",
+                imageUrl: petDetails.foto || "https://images.unsplash.com/photo-1548247425-a6e54f979145?w=500&auto=format&fit=crop",
+                type: petDetails.especie === 3 ? "Cachorro" : "Gato",
+                breed: "SRD",
+                gender: petDetails.sexo === 1 ? "MACHO" : petDetails.sexo === 2 ? "FÊMEA" : "DESCONHECIDO",
+                size: (() => {
+                    const sizeMap: Record<number, string> = {
+                        1: "PEQUENO",
+                        2: "MÉDIO",
+                        3: "GRANDE",
+                        4: "MUITO GRANDE"
+                    };
+                    return sizeMap[Number(petDetails.porte)] || "DESCONHECIDO";
+                })(),
+                age: (() => {
+                    const ageMap: Record<number, string> = {
+                        1: "FILHOTE",
+                        2: "ADULTO",
+                        3: "IDOSO",
+                        4: "INDIFERENTE"
+                    };
+                    return ageMap[petDetails.idade] || "DESCONHECIDO";
+                })(),
+                description: petDetails.descricao || "Sem descrição disponível",
+                contact: {
+                    name: "Contato disponível via ONG",
+                    email: "contato@ong.com",
+                    phone: "Contato via ONG"
+                },
+                characteristics: {
+                    veterinaryCare: petDetails.doenca_cronica
+                        ? "Possui doença crônica - requer acompanhamento veterinário regular"
+                        : "Sem doenças crônicas conhecidas",
+                    temperament: petDetails.amigavel_outros_animais
+                        ? "Amigável com outros animais - convive bem em ambientes com outros pets"
+                        : "Prefere ser o único pet - pode não se adaptar bem com outros animais",
+                    socialWith: petDetails.necessidades_especiais
+                        ? "Possui necessidades especiais - requer atenção e cuidados específicos"
+                        : "Sem necessidades especiais",
+                    livesWellWith: petDetails.cuidados_constantes
+                        ? "Requer cuidados constantes - ideal para tutores com disponibilidade de tempo"
+                        : "Cuidados básicos - rotina de cuidados padrão"
+                },
+                score: petScore
+            };
+
+            setSelectedPet(petForModal);
+        } catch (error: any) {
+            console.error('Erro ao buscar detalhes do pet:', error);
+            // Fecha o modal em caso de erro
+            setIsModalOpen(false);
+            setPetsError(error.message || 'Erro ao carregar detalhes do pet');
+        } finally {
+            setIsModalLoading(false);
+        }
     };
 
     const handleCloseModal = () => {
         setIsModalOpen(false);
         setSelectedPet(null);
+        setIsModalLoading(false);
     };
 
     // Funções para gerenciar o modal de rastreamento
@@ -233,6 +315,21 @@ function HomeContent() {
             {/* Alterna entre as views */}
             {isPetRegisterView ? (
                 <PetRegisterForm onBackClick={handleBackFromPetRegister} />
+            ) : isHeuristicView ? (
+                <>
+                    <Navbar
+                        isLoginView={false}
+                        onLoginClick={handleLoginClick}
+                        onHomeClick={handleHomeClick}
+                        onRegisterClick={handleRegisterClick}
+                        onMyPetsClick={handleMyPetsClick}
+                        onSearchClick={handleSearchClick}
+                        onHeuristicClick={handleHeuristicClick}
+                        currentPage="heuristic"
+                        onLogoutCallback={handleHomeClick}
+                    />
+                    <HeuristicPage onPetClick={handlePetClick} />
+                </>
             ) : isMyPetsView ? (
                 <>
                     {/* Navbar também na tela Meus Pets */}
@@ -243,6 +340,7 @@ function HomeContent() {
                         onRegisterClick={handleRegisterClick}
                         onMyPetsClick={handleMyPetsClick}
                         onSearchClick={handleSearchClick}
+                        onHeuristicClick={handleHeuristicClick}
                         currentPage="mypets"
                         onLogoutCallback={handleHomeClick}
                     />
@@ -278,6 +376,7 @@ function HomeContent() {
                                 onRegisterClick={handleRegisterClick}
                                 onMyPetsClick={handleMyPetsClick}
                                 onSearchClick={handleSearchClick}
+                                onHeuristicClick={handleHeuristicClick}
                                 currentPage="search"
                                 onLogoutCallback={handleHomeClick}
                             />
@@ -291,17 +390,38 @@ function HomeContent() {
                                 {/* Barra Lateral de Filtros */}
                                 <aside className="w-1/4 p-6 bg-white rounded-lg shadow-md border border-gray-300">
                                     <h2 className="text-xl font-bold mb-4">FILTRAR PETS</h2>
-                                    <FilterItem label="ESPÉCIE" />
-                                    <FilterItem label="CEP" />
-                                    <FilterItem label="RAÇA" />
-                                    <FilterItem label="PORTE" />
-                                    <FilterItem label="SEXO" />
+                                    <FilterItem
+                                        label="ESPÉCIE"
+                                        onChange={(value) => setFilters(prev => ({ ...prev, especie: value, raca: '' }))}
+                                    />
+                                    <FilterItemRaca
+                                        label="RAÇA"
+                                        especieSelecionada={filters.especie ? parseInt(filters.especie) : null}
+                                        onChange={(value) => setFilters(prev => ({ ...prev, raca: value }))}
+                                    />
+                                    <FilterItem
+                                        label="PORTE"
+                                        onChange={(value) => setFilters(prev => ({ ...prev, porte: value }))}
+                                    />
+                                    <FilterItem
+                                        label="SEXO"
+                                        onChange={(value) => setFilters(prev => ({ ...prev, sexo: value }))}
+                                    />
 
                                     <div className="mt-6 flex flex-col gap-2">
-                                        <button className="w-full bg-red-500 text-white py-2 rounded-lg font-bold transform transition duration-200 ease-in-out hover:bg-red-600 hover:scale-105">
+                                        <button
+                                            onClick={loadPets}
+                                            className="w-full bg-red-500 text-white py-2 rounded-lg font-bold transform transition duration-200 ease-in-out hover:bg-red-600 hover:scale-105"
+                                        >
                                             FILTRAR
                                         </button>
-                                        <button className="w-full bg-gray-200 text-gray-800 py-2 rounded-lg font-bold transform transition duration-200 ease-in-out hover:bg-gray-300 hover:scale-105">
+                                        <button
+                                            onClick={() => {
+                                                setFilters({ especie: '', raca: '', porte: '', sexo: '' });
+                                                setSearchTerm('');
+                                            }}
+                                            className="w-full bg-gray-200 text-gray-800 py-2 rounded-lg font-bold transform transition duration-200 ease-in-out hover:bg-gray-300 hover:scale-105"
+                                        >
                                             LIMPAR FILTROS
                                         </button>
                                     </div>
@@ -313,26 +433,65 @@ function HomeContent() {
                                     <div className="mb-8 flex items-center bg-white p-2 rounded-lg shadow-md border border-gray-300">
                                         <input
                                             type="text"
-                                            placeholder="Pesquisar..."
+                                            placeholder="Pesquisar por nome do pet..."
+                                            value={searchTerm}
+                                            onChange={(e) => setSearchTerm(e.target.value)}
                                             className="flex-1 p-2 focus:outline-none"
                                         />
-                                        <span className="p-2 cursor-pointer rounded hover:bg-gray-100 transition-colors duration-150">
+                                        {searchTerm && (
+                                            <button
+                                                onClick={() => setSearchTerm('')}
+                                                className="p-2 text-gray-500 hover:text-gray-700 transition-colors duration-150"
+                                            >
+                                                ✕
+                                            </button>
+                                        )}
+                                        <span className="p-2 text-gray-400">
                                             🔍
                                         </span>
                                     </div>
 
                                     {/* Grid de Cartões de Animais */}
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                        {pets.map((pet) => (
-                                            <PetCard
-                                                key={pet.id}
-                                                name={pet.name}
-                                                location={pet.location}
-                                                imageUrl={pet.imageUrl}
-                                                onClick={() => handlePetClick(pet)}
-                                            />
-                                        ))}
-                                    </div>
+                                    {petsLoading ? (
+                                        <div className="flex justify-center items-center h-64">
+                                            <div className="text-center">
+                                                <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-red-400 mx-auto mb-4"></div>
+                                                <p className="text-gray-600 text-lg">Carregando pets...</p>
+                                            </div>
+                                        </div>
+                                    ) : petsError ? (
+                                        <div className="flex justify-center items-center h-64">
+                                            <div className="text-center">
+                                                <p className="text-red-500 text-lg mb-4">{petsError}</p>
+                                                <button
+                                                    onClick={loadPets}
+                                                    className="bg-red-500 text-white px-6 py-2 rounded-lg font-bold hover:bg-red-600 transition"
+                                                >
+                                                    Tentar Novamente
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : filteredPets.length === 0 ? (
+                                        <div className="flex justify-center items-center h-64">
+                                            <p className="text-gray-500 text-lg">
+                                                {searchTerm
+                                                    ? `Nenhum pet encontrado com o nome "${searchTerm}"`
+                                                    : 'Nenhum pet encontrado'}
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                            {filteredPets.map((pet) => (
+                                                <PetCard
+                                                    key={pet.id_pet}
+                                                    name={pet.nome.toUpperCase()}
+                                                    especie={pet.especie === 3 ? "CACHORRO" : pet.especie === 4 ? "GATO" : "OUTRO"}
+                                                    imageUrl={pet.foto || "https://images.unsplash.com/photo-1548247425-a6e54f979145?w=500&auto=format&fit=crop"}
+                                                    onClick={() => handlePetClick(pet)}
+                                                />
+                                            ))}
+                                        </div>
+                                    )}
                                 </main>
                             </div>
                         </>
@@ -345,13 +504,15 @@ function HomeContent() {
                 isOpen={isModalOpen}
                 onClose={handleCloseModal}
                 pet={selectedPet}
+                isLoading={isModalLoading}
             />
 
             {/* Modal de rastreamento do pet */}
             <PetTrackingModal
                 isOpen={isTrackingModalOpen}
                 onClose={handleCloseTrackingModal}
-                petTracking={selectedUserPet ? getMockTracking(selectedUserPet) : null}
+                petId={selectedUserPet?.id || null}
+                pet={selectedUserPet}
             />
         </div>
     );

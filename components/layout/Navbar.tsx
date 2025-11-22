@@ -8,11 +8,12 @@ type NavbarProps = {
     onRegisterClick?: () => void;
     onMyPetsClick?: () => void;
     onSearchClick?: () => void;
-    currentPage?: 'search' | 'mypets';
+    onHeuristicClick?: () => void;
+    currentPage?: 'search' | 'mypets' | 'heuristic';
     onLogoutCallback?: () => void;
 };
 
-export default function Navbar({ isLoginView, onLoginClick, onHomeClick, onRegisterClick, onMyPetsClick, onSearchClick, currentPage, onLogoutCallback }: NavbarProps) {
+export default function Navbar({ isLoginView, onLoginClick, onHomeClick, onRegisterClick, onMyPetsClick, onSearchClick, onHeuristicClick, currentPage, onLogoutCallback }: NavbarProps) {
     const { isLoggedIn, logout } = useAuth();
 
     const handleLogout = () => {
@@ -61,6 +62,17 @@ export default function Navbar({ isLoginView, onLoginClick, onHomeClick, onRegis
                         >
                             PESQUISAR
                         </span>
+                        {isLoggedIn && (
+                            <span
+                                className={`font-bold cursor-pointer border-b-2 pb-1 ${currentPage === 'heuristic'
+                                    ? 'text-red-500 border-red-500'
+                                    : 'text-gray-800 hover:text-red-500 border-transparent'
+                                    }`}
+                                onClick={onHeuristicClick}
+                            >
+                                RECOMENDADOS
+                            </span>
+                        )}
                     </div>
                 )}
             </div>

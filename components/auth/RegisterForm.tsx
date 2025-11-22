@@ -1,14 +1,15 @@
 // components/auth/RegisterForm.tsx
 import React, { useState } from 'react';
 import ErrorPopup from '../ui/ErrorPopup';
+import { authService } from '../../services/authService';
 
 interface RegisterFormProps {
     onBackClick: () => void;
+    onSuccess?: () => void;
 }
 
-export const RegisterForm: React.FC<RegisterFormProps> = ({ onBackClick }) => {
+export const RegisterForm: React.FC<RegisterFormProps> = ({ onBackClick, onSuccess }) => {
     const [formData, setFormData] = useState({
-        cep: '',
         name: '',
         phone: '',
         email: '',
@@ -16,6 +17,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onBackClick }) => {
     });
     const [error, setError] = useState('');
     const [showErrorPopup, setShowErrorPopup] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -25,13 +27,13 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onBackClick }) => {
         }));
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
         setShowErrorPopup(false);
 
         // Validação básica
-        if (!formData.cep || !formData.name || !formData.phone || !formData.email || !formData.password) {
+        if (!formData.name || !formData.phone || !formData.email || !formData.password) {
             setError('Por favor, preencha todos os campos obrigatórios.');
             setShowErrorPopup(true);
             return;
@@ -49,8 +51,49 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onBackClick }) => {
             return;
         }
 
-        // Aqui você pode implementar a lógica de cadastro
-        console.log('Dados do formulário:', formData);
+        setIsLoading(true);
+
+        try {
+            // Chama o serviço de registro
+            const response = await authService.register({
+                nome: formData.name,
+                email: formData.email,
+                telefone: formData.phone,
+            });
+
+            console.log('RegisterForm: Cadastro realizado com sucesso:', response);
+
+            // Limpa o formulário
+            setFormData({
+                name: '',
+                phone: '',
+                email: '',
+                password: ''
+            });
+
+            // Chama callback de sucesso se fornecido
+            if (onSuccess) {
+                onSuccess();
+            } else {
+                // Volta para a tela anterior
+                onBackClick();
+            }
+        } catch (error) {
+            console.error('RegisterForm: Erro ao cadastrar:', error);
+
+            let errorMessage = 'Erro ao criar conta. Tente novamente.';
+
+            if (error instanceof Error) {
+                errorMessage = error.message;
+            } else if (typeof error === 'string') {
+                errorMessage = error;
+            }
+
+            setError(errorMessage);
+            setShowErrorPopup(true);
+        } finally {
+            setIsLoading(false);
+        }
     };
     return (
         <div className="flex-1 flex flex-col">
@@ -88,14 +131,6 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onBackClick }) => {
                         <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
                             <input
                                 type="text"
-                                name="cep"
-                                placeholder="CEP"
-                                value={formData.cep}
-                                onChange={handleInputChange}
-                                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"
-                            />
-                            <input
-                                type="text"
                                 name="name"
                                 placeholder="NOME COMPLETO"
                                 value={formData.name}
@@ -131,8 +166,12 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onBackClick }) => {
                                 Ao se cadastrar, você concorda com os <a href="#" className="underline font-medium text-red-500 hover:text-red-700">termos de serviço</a>
                             </p>
 
-                            <button type="submit" className="w-full bg-red-400 text-white font-bold py-3 rounded-xl shadow-md mt-4 hover:bg-red-500 transition duration-200">
-                                CADASTRAR
+                            <button
+                                type="submit"
+                                disabled={isLoading}
+                                className="w-full bg-red-400 text-white font-bold py-3 rounded-xl shadow-md mt-4 hover:bg-red-500 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isLoading ? 'CADASTRANDO...' : 'CADASTRAR'}
                             </button>
                         </form>
                     </div>

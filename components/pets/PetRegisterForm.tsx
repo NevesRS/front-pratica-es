@@ -1,5 +1,7 @@
 // components/pets/PetRegisterForm.tsx
 import React, { useState } from 'react';
+import { petService, CreatePetData } from '@/services/petService';
+import { authService } from '@/services/authService';
 
 interface PetRegisterFormProps {
     onBackClick: () => void;
@@ -8,6 +10,21 @@ interface PetRegisterFormProps {
 export const PetRegisterForm: React.FC<PetRegisterFormProps> = ({ onBackClick }) => {
     const [selectedImage, setSelectedImage] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string>('');
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string>('');
+
+    // Estado do formulário baseado nos campos da API
+    const [formData, setFormData] = useState({
+        nome: '',
+        idade: '',
+        porte: '',
+        descricao: '',
+        especie: '',
+        doenca_cronica: false,
+        necessidades_especiais: false,
+        cuidados_constantes: false,
+        amigavel_outros_animais: false,
+    });
 
     const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -21,11 +38,70 @@ export const PetRegisterForm: React.FC<PetRegisterFormProps> = ({ onBackClick })
         }
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+        const { name, value, type } = e.target;
+
+        if (type === 'checkbox') {
+            const checked = (e.target as HTMLInputElement).checked;
+            setFormData(prev => ({ ...prev, [name]: checked }));
+        } else {
+            setFormData(prev => ({ ...prev, [name]: value }));
+        }
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        // Aqui você pode adicionar a lógica para salvar o pet
-        console.log('Pet cadastrado!');
-        onBackClick(); // Volta para a tela anterior após cadastrar
+        setError('');
+        setIsLoading(true);
+
+        try {
+            // Validações básicas
+            if (!formData.nome.trim()) {
+                throw new Error('Nome é obrigatório');
+            }
+            if (!formData.idade || parseInt(formData.idade) <= 0) {
+                throw new Error('Idade deve ser maior que zero');
+            }
+            if (!formData.porte) {
+                throw new Error('Porte é obrigatório');
+            }
+            if (!formData.especie) {
+                throw new Error('Espécie é obrigatória');
+            }
+
+            // Preparar dados para enviar
+            const petData: CreatePetData = {
+                nome: formData.nome,
+                idade: parseInt(formData.idade),
+                porte: formData.porte,
+                descricao: formData.descricao || undefined,
+                foto: imagePreview || undefined,
+                doenca_cronica: formData.doenca_cronica,
+                necessidades_especiais: formData.necessidades_especiais,
+                cuidados_constantes: formData.cuidados_constantes,
+                amigavel_outros_animais: formData.amigavel_outros_animais,
+                especie: parseInt(formData.especie),
+                status_pet: 1, // 1 para disponível para adoção
+            };
+
+            // Vincular pet ao usuário logado através do token JWT
+            const userId = authService.getUserIdFromToken();
+            if (userId) {
+                petData.tutor = userId;
+            }
+
+            // Enviar para a API
+            await petService.createPet(petData);
+
+            // Sucesso - volta para a tela anterior
+            alert('Pet cadastrado com sucesso!');
+            onBackClick();
+        } catch (error: any) {
+            console.error('Erro ao cadastrar pet:', error);
+            setError(error.message || 'Erro ao cadastrar pet. Tente novamente.');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -98,94 +174,135 @@ export const PetRegisterForm: React.FC<PetRegisterFormProps> = ({ onBackClick })
                     {/* Lado Direito - Formulário de Cadastro do Pet */}
                     <div className="w-3/5 p-8">
                         <h2 className="text-2xl font-bold mb-8 text-gray-800">CADASTRAR PET</h2>
+
+                        {error && (
+                            <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+                                {error}
+                            </div>
+                        )}
+
                         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                            {/* Primeira linha - CEP */}
-                            <input
-                                type="text"
-                                placeholder="CEP"
-                                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"
-                                required
-                            />
-
-                            {/* Segunda linha - Nome e Temperamento */}
+                            {/* Nome e Idade */}
                             <div className="flex gap-4">
                                 <input
                                     type="text"
-                                    placeholder="NOME"
+                                    name="nome"
+                                    value={formData.nome}
+                                    onChange={handleInputChange}
+                                    placeholder="NOME DO PET"
                                     className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"
                                     required
                                 />
                                 <input
-                                    type="text"
-                                    placeholder="TEMPERAMENTO"
-                                    className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"
-                                />
-                            </div>
-
-                            {/* Terceira linha - Raça e Cuidados Veterinários */}
-                            <div className="flex gap-4">
-                                <input
-                                    type="text"
-                                    placeholder="RAÇA"
+                                    type="number"
+                                    name="idade"
+                                    value={formData.idade}
+                                    onChange={handleInputChange}
+                                    placeholder="IDADE (anos)"
+                                    min="0"
                                     className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"
                                     required
                                 />
-                                <input
-                                    type="text"
-                                    placeholder="CUIDADOS VETERINÁRIOS"
-                                    className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"
-                                />
                             </div>
 
-                            {/* Quarta linha - Sexo e Vive Bem Com */}
+                            {/* Espécie e Porte */}
                             <div className="flex gap-4">
-                                <select className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500 text-gray-500">
-                                    <option value="">SEXO</option>
-                                    <option value="macho">MACHO</option>
-                                    <option value="femea">FÊMEA</option>
+                                <select
+                                    name="especie"
+                                    value={formData.especie}
+                                    onChange={handleInputChange}
+                                    className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500 text-gray-500"
+                                    required
+                                >
+                                    <option value="">ESPÉCIE</option>
+                                    <option value="1">CACHORRO</option>
+                                    <option value="2">GATO</option>
                                 </select>
-                                <input
-                                    type="text"
-                                    placeholder="VIVE BEM COM"
-                                    className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"
-                                />
-                            </div>
-
-                            {/* Quinta linha - Porte e Sociável Com */}
-                            <div className="flex gap-4">
-                                <select className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500 text-gray-500">
+                                <select
+                                    name="porte"
+                                    value={formData.porte}
+                                    onChange={handleInputChange}
+                                    className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500 text-gray-500"
+                                    required
+                                >
                                     <option value="">PORTE</option>
-                                    <option value="pequeno">PEQUENO</option>
-                                    <option value="medio">MÉDIO</option>
-                                    <option value="grande">GRANDE</option>
+                                    <option value="Pequeno">PEQUENO</option>
+                                    <option value="Medio">MÉDIO</option>
+                                    <option value="Grande">GRANDE</option>
                                 </select>
-                                <input
-                                    type="text"
-                                    placeholder="SOCIÁVEL COM"
-                                    className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"
-                                />
                             </div>
 
                             {/* Campo de Descrição */}
                             <div>
                                 <textarea
+                                    name="descricao"
+                                    value={formData.descricao}
+                                    onChange={handleInputChange}
                                     placeholder="DESCRIÇÃO DO ANIMAL (História, características especiais, etc.)"
-                                    rows={4}
+                                    rows={3}
                                     className="w-full p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500 resize-none"
                                 />
                             </div>
 
+                            {/* Checkboxes de características */}
+                            <div className="space-y-2">
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        name="doenca_cronica"
+                                        checked={formData.doenca_cronica}
+                                        onChange={handleInputChange}
+                                        className="w-4 h-4 text-red-500 rounded focus:ring-red-500"
+                                    />
+                                    <span className="text-sm text-gray-700">Possui doença crônica</span>
+                                </label>
+
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        name="necessidades_especiais"
+                                        checked={formData.necessidades_especiais}
+                                        onChange={handleInputChange}
+                                        className="w-4 h-4 text-red-500 rounded focus:ring-red-500"
+                                    />
+                                    <span className="text-sm text-gray-700">Possui necessidades especiais</span>
+                                </label>
+
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        name="cuidados_constantes"
+                                        checked={formData.cuidados_constantes}
+                                        onChange={handleInputChange}
+                                        className="w-4 h-4 text-red-500 rounded focus:ring-red-500"
+                                    />
+                                    <span className="text-sm text-gray-700">Requer cuidados constantes</span>
+                                </label>
+
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        name="amigavel_outros_animais"
+                                        checked={formData.amigavel_outros_animais}
+                                        onChange={handleInputChange}
+                                        className="w-4 h-4 text-red-500 rounded focus:ring-red-500"
+                                    />
+                                    <span className="text-sm text-gray-700">Amigável com outros animais</span>
+                                </label>
+                            </div>
+
                             {/* Termos de serviço */}
                             <p className="text-xs text-gray-600 mt-2">
-                                Ao se cadastrar, você concorda com os <a href="#" className="underline font-medium text-red-500 hover:text-red-700">termos de serviço</a>
+                                Ao cadastrar, você concorda com os <a href="#" className="underline font-medium text-red-500 hover:text-red-700">termos de serviço</a>
                             </p>
 
                             {/* Botão de Cadastrar */}
                             <button
                                 type="submit"
-                                className="w-full bg-red-400 text-white font-bold py-3 rounded-xl shadow-md mt-4 hover:bg-red-500 transition duration-200"
+                                disabled={isLoading}
+                                className="w-full bg-red-400 text-white font-bold py-3 rounded-xl shadow-md mt-4 hover:bg-red-500 transition duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed"
                             >
-                                CADASTRAR PET
+                                {isLoading ? 'CADASTRANDO...' : 'CADASTRAR PET'}
                             </button>
                         </form>
                     </div>

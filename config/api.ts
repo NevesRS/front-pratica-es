@@ -5,6 +5,12 @@ export const API_CONFIG = {
     ENDPOINTS: {
         TOKEN: '/api/token/',
         TOKEN_REFRESH: '/api/token/refresh/',
+        REGISTER: '/api/adotante/',
+        PETS: '/api/pet/',
+        PET_BY_ID: (id: number) => `/api/pet/${id}/`,
+        RACAS: '/api/racasPet/',
+        RASTREIO: (id: number) => `/api/rastreio/pet/${id}/`,
+        RASTREIO_CREATE: '/api/rastreio/',
     }
 };
 

@@ -25,7 +25,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setIsLoggedIn(isAuthenticated);
 
             if (isAuthenticated) {
-                setUser({ username: 'Usuário Logado' });
+                const usernameFromToken = authService.getUsernameFromToken();
+                setUser({ username: usernameFromToken || 'Usuário Logado' });
             }
 
             setIsLoading(false);
@@ -42,7 +43,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const response = await authService.login({ username, password });
             console.log('AuthContext: Login bem-sucedido', response);
             setIsLoggedIn(true);
-            setUser({ username: response.username });
+
+            // Obtém o username do token JWT
+            const usernameFromToken = authService.getUsernameFromToken();
+            setUser({ username: usernameFromToken || username });
         } catch (error) {
             console.error('AuthContext: Erro capturado no login:', error);
 
