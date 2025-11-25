@@ -26,6 +26,8 @@ export interface CreatePetData {
     porte: string;
     descricao?: string;
     foto?: string;
+    sexo?: number;
+    raca?: number;
     doenca_cronica: boolean;
     necessidades_especiais: boolean;
     cuidados_constantes: boolean;

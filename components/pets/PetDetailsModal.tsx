@@ -138,7 +138,7 @@ export default function PetDetailsModal({ isOpen, onClose, pet, isLoading = fals
 
                             {/* Botão Quero Adotar no final */}
                             <div className="text-center mb-4">
-                                <button className="w-full bg-gray-100 text-2xl font-bold text-gray-800 py-6 px-6 rounded-xl transform transition duration-200 ease-in-out hover:bg-gray-200 hover:scale-105">
+                                <button className="w-full bg-gray-100 text-2xl font-bold text-gray-800 py-6 px-6 rounded-xl transform transition duration-200 ease-in-out hover:bg-gray-300">
                                     QUERO ADOTAR
                                 </button>
                             </div>

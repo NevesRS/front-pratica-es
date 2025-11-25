@@ -11,9 +11,9 @@ export default function FilterItem({ label, options, onChange }: FilterItemProps
         switch (label) {
             case "ESPÉCIE":
                 return [
-                    { value: "", label: "Todas" },
-                    { value: "3", label: "Cachorro" },
-                    { value: "4", label: "Gato" }
+                    { value: "", label: "Todos" },
+                    { value: "1", label: "Gato" },
+                    { value: "2", label: "Cachorro" }
                 ];
             case "PORTE":
                 return [

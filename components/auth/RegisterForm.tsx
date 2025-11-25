@@ -1,25 +1,62 @@
 // components/auth/RegisterForm.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ErrorPopup from '../ui/ErrorPopup';
 import { authService } from '../../services/authService';
+import { UserTypeModal } from './UserTypeModal';
 
 interface RegisterFormProps {
     onBackClick: () => void;
     onSuccess?: () => void;
 }
 
+interface Ong {
+    id_ong: number;
+    nome: string;
+}
+
 export const RegisterForm: React.FC<RegisterFormProps> = ({ onBackClick, onSuccess }) => {
+    const [showTypeModal, setShowTypeModal] = useState(true);
+    const [userType, setUserType] = useState<'adotante' | 'tutor' | null>(null);
+    const [ongs, setOngs] = useState<Ong[]>([]);
+
     const [formData, setFormData] = useState({
         name: '',
+        cpf: '',
         phone: '',
         email: '',
-        password: ''
+        password: '',
+        ong: ''
     });
     const [error, setError] = useState('');
     const [showErrorPopup, setShowErrorPopup] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
 
-    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    useEffect(() => {
+        if (userType === 'tutor') {
+            loadOngs();
+        }
+    }, [userType]);
+
+    const loadOngs = async () => {
+        try {
+            const response = await fetch('http://127.0.0.1:8000/api/ong/', {
+                method: 'GET',
+            });
+            if (response.ok) {
+                const data = await response.json();
+                setOngs(data);
+            }
+        } catch (error) {
+            console.error('Erro ao carregar ONGs:', error);
+        }
+    };
+
+    const handleUserTypeSelect = (type: 'adotante' | 'tutor') => {
+        setUserType(type);
+        setShowTypeModal(false);
+    };
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
         setFormData(prev => ({
             ...prev,
@@ -39,6 +76,12 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onBackClick, onSucce
             return;
         }
 
+        if (userType === 'tutor' && !formData.cpf) {
+            setError('CPF é obrigatório para tutores.');
+            setShowErrorPopup(true);
+            return;
+        }
+
         if (!formData.email.includes('@')) {
             setError('Por favor, insira um e-mail válido.');
             setShowErrorPopup(true);
@@ -54,21 +97,50 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onBackClick, onSucce
         setIsLoading(true);
 
         try {
-            // Chama o serviço de registro
-            const response = await authService.register({
-                nome: formData.name,
-                email: formData.email,
-                telefone: formData.phone,
-            });
+            if (userType === 'adotante') {
+                // Cadastro de adotante
+                const response = await authService.register({
+                    nome: formData.name,
+                    email: formData.email,
+                    telefone: formData.phone,
+                    password: formData.password,
+                });
+                console.log('RegisterForm: Cadastro de adotante realizado com sucesso:', response);
+            } else if (userType === 'tutor') {
+                // Cadastro de tutor
+                const tutorData: any = {
+                    nome: formData.name,
+                    cpf: formData.cpf,
+                    telefone: formData.phone,
+                    email: formData.email,
+                    password: formData.password,
+                    ong_id: formData.ong ? parseInt(formData.ong) : undefined,
+                };
 
-            console.log('RegisterForm: Cadastro realizado com sucesso:', response);
+                const response = await fetch('http://127.0.0.1:8000/api/auth/register/tutor/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(tutorData),
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || 'Erro ao cadastrar tutor');
+                }
+
+                console.log('RegisterForm: Cadastro de tutor realizado com sucesso');
+            }
 
             // Limpa o formulário
             setFormData({
                 name: '',
+                cpf: '',
                 phone: '',
                 email: '',
-                password: ''
+                password: '',
+                ong: ''
             });
 
             // Chama callback de sucesso se fornecido
@@ -95,6 +167,11 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onBackClick, onSucce
             setIsLoading(false);
         }
     };
+
+    // Mostrar modal de seleção primeiro
+    if (showTypeModal) {
+        return <UserTypeModal onSelectType={handleUserTypeSelect} onClose={onBackClick} />;
+    }
     return (
         <div className="flex-1 flex flex-col">
             {/* Header */}
@@ -127,7 +204,12 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onBackClick, onSucce
 
                     {/* Lado Direito - Formulário de Cadastro (50% ou w-3/5) */}
                     <div className="w-3/5 p-8">
-                        <h2 className="text-2xl font-bold mb-8 text-gray-800">FAÇA SEU CADASTRO</h2>
+                        <h2 className="text-2xl font-bold mb-2 text-gray-800">
+                            {userType === 'tutor' ? 'CADASTRO DE TUTOR' : 'FAÇA SEU CADASTRO'}
+                        </h2>
+                        <p className="text-sm text-gray-600 mb-6">
+                            {userType === 'tutor' ? 'Cadastre-se como tutor para anunciar pets' : 'Cadastre-se como adotante'}
+                        </p>
                         <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
                             <input
                                 type="text"
@@ -136,7 +218,22 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onBackClick, onSucce
                                 value={formData.name}
                                 onChange={handleInputChange}
                                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"
+                                required
                             />
+
+                            {userType === 'tutor' && (
+                                <input
+                                    type="text"
+                                    name="cpf"
+                                    placeholder="CPF"
+                                    value={formData.cpf}
+                                    onChange={handleInputChange}
+                                    maxLength={14}
+                                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"
+                                    required
+                                />
+                            )}
+
                             <input
                                 type="tel"
                                 name="phone"
@@ -144,6 +241,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onBackClick, onSucce
                                 value={formData.phone}
                                 onChange={handleInputChange}
                                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"
+                                required
                             />
                             <input
                                 type="email"
@@ -152,6 +250,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onBackClick, onSucce
                                 value={formData.email}
                                 onChange={handleInputChange}
                                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"
+                                required
                             />
                             <input
                                 type="password"
@@ -160,7 +259,24 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onBackClick, onSucce
                                 value={formData.password}
                                 onChange={handleInputChange}
                                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"
+                                required
                             />
+
+                            {userType === 'tutor' && (
+                                <select
+                                    name="ong"
+                                    value={formData.ong}
+                                    onChange={handleInputChange}
+                                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500 text-gray-700"
+                                >
+                                    <option value="">ONG (OPCIONAL)</option>
+                                    {ongs.map(ong => (
+                                        <option key={ong.id_ong} value={ong.id_ong}>
+                                            {ong.nome}
+                                        </option>
+                                    ))}
+                                </select>
+                            )}
 
                             <p className="text-xs text-gray-600 mt-2">
                                 Ao se cadastrar, você concorda com os <a href="#" className="underline font-medium text-red-500 hover:text-red-700">termos de serviço</a>

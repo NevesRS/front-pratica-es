@@ -1,5 +1,6 @@
 import React from "react";
 import { useAuth } from "../../contexts/AuthContext";
+import { authService } from "../../services/authService";
 
 type NavbarProps = {
     isLoginView: boolean;
@@ -9,12 +10,16 @@ type NavbarProps = {
     onMyPetsClick?: () => void;
     onSearchClick?: () => void;
     onHeuristicClick?: () => void;
-    currentPage?: 'search' | 'mypets' | 'heuristic';
+    onPreferencesClick?: () => void;
+    currentPage?: 'search' | 'mypets' | 'heuristic' | 'preferences';
     onLogoutCallback?: () => void;
 };
 
-export default function Navbar({ isLoginView, onLoginClick, onHomeClick, onRegisterClick, onMyPetsClick, onSearchClick, onHeuristicClick, currentPage, onLogoutCallback }: NavbarProps) {
+export default function Navbar({ isLoginView, onLoginClick, onHomeClick, onRegisterClick, onMyPetsClick, onSearchClick, onHeuristicClick, onPreferencesClick, currentPage, onLogoutCallback }: NavbarProps) {
     const { isLoggedIn, logout } = useAuth();
+
+    // Obtém o perfil do usuário (adotante ou tutor)
+    const userProfile = isLoggedIn ? authService.getUserProfileFromToken() : null;
 
     const handleLogout = () => {
         console.log('Navbar: Executando logout');
@@ -42,7 +47,8 @@ export default function Navbar({ isLoginView, onLoginClick, onHomeClick, onRegis
                 {/* Navigation links immediately to the right of the logo */}
                 {!isLoginView && (
                     <div className="flex items-center gap-4">
-                        {isLoggedIn && (
+                        {/* MEUS PETS - apenas para tutores */}
+                        {isLoggedIn && userProfile === 'tutor' && (
                             <span
                                 className={`font-bold cursor-pointer border-b-2 pb-1 ${currentPage === 'mypets'
                                     ? 'text-red-500 border-red-500'
@@ -53,6 +59,8 @@ export default function Navbar({ isLoginView, onLoginClick, onHomeClick, onRegis
                                 MEUS PETS
                             </span>
                         )}
+
+                        {/* PESQUISAR - sempre visível */}
                         <span
                             className={`font-bold cursor-pointer border-b-2 pb-1 ${currentPage === 'search'
                                 ? 'text-red-500 border-red-500'
@@ -62,7 +70,9 @@ export default function Navbar({ isLoginView, onLoginClick, onHomeClick, onRegis
                         >
                             PESQUISAR
                         </span>
-                        {isLoggedIn && (
+
+                        {/* RECOMENDADOS - apenas para adotantes */}
+                        {isLoggedIn && userProfile === 'adotante' && (
                             <span
                                 className={`font-bold cursor-pointer border-b-2 pb-1 ${currentPage === 'heuristic'
                                     ? 'text-red-500 border-red-500'
@@ -71,6 +81,19 @@ export default function Navbar({ isLoginView, onLoginClick, onHomeClick, onRegis
                                 onClick={onHeuristicClick}
                             >
                                 RECOMENDADOS
+                            </span>
+                        )}
+
+                        {/* PREFERÊNCIAS - apenas para adotantes */}
+                        {isLoggedIn && userProfile === 'adotante' && (
+                            <span
+                                className={`font-bold cursor-pointer border-b-2 pb-1 ${currentPage === 'preferences'
+                                    ? 'text-red-500 border-red-500'
+                                    : 'text-gray-800 hover:text-red-500 border-transparent'
+                                    }`}
+                                onClick={onPreferencesClick}
+                            >
+                                PREFERÊNCIAS
                             </span>
                         )}
                     </div>

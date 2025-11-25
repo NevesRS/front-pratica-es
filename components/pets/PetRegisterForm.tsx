@@ -1,6 +1,6 @@
 // components/pets/PetRegisterForm.tsx
-import React, { useState } from 'react';
-import { petService, CreatePetData } from '@/services/petService';
+import React, { useState, useEffect } from 'react';
+import { petService, CreatePetData, Raca } from '@/services/petService';
 import { authService } from '@/services/authService';
 
 interface PetRegisterFormProps {
@@ -12,6 +12,8 @@ export const PetRegisterForm: React.FC<PetRegisterFormProps> = ({ onBackClick })
     const [imagePreview, setImagePreview] = useState<string>('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string>('');
+    const [racas, setRacas] = useState<Raca[]>([]);
+    const [showSuccessToast, setShowSuccessToast] = useState(false);
 
     // Estado do formulário baseado nos campos da API
     const [formData, setFormData] = useState({
@@ -20,11 +22,32 @@ export const PetRegisterForm: React.FC<PetRegisterFormProps> = ({ onBackClick })
         porte: '',
         descricao: '',
         especie: '',
+        sexo: '',
+        raca: '',
+        status_pet: '1',
         doenca_cronica: false,
         necessidades_especiais: false,
         cuidados_constantes: false,
         amigavel_outros_animais: false,
     });
+
+    useEffect(() => {
+        loadRacas();
+    }, []);
+
+    const loadRacas = async () => {
+        try {
+            const data = await petService.getRacas();
+            setRacas(data);
+        } catch (error) {
+            console.error('Erro ao carregar raças:', error);
+        }
+    };
+
+    // Filtrar raças por espécie
+    const racasFiltradas = formData.especie
+        ? racas.filter(raca => raca.especie === parseInt(formData.especie))
+        : [];
 
     const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -45,7 +68,12 @@ export const PetRegisterForm: React.FC<PetRegisterFormProps> = ({ onBackClick })
             const checked = (e.target as HTMLInputElement).checked;
             setFormData(prev => ({ ...prev, [name]: checked }));
         } else {
-            setFormData(prev => ({ ...prev, [name]: value }));
+            // Se mudar a espécie, limpar a raça selecionada
+            if (name === 'especie') {
+                setFormData(prev => ({ ...prev, [name]: value, raca: '' }));
+            } else {
+                setFormData(prev => ({ ...prev, [name]: value }));
+            }
         }
     };
 
@@ -69,6 +97,17 @@ export const PetRegisterForm: React.FC<PetRegisterFormProps> = ({ onBackClick })
                 throw new Error('Espécie é obrigatória');
             }
 
+            // Buscar o ID do tutor a partir do user_id do token
+            const userId = authService.getUserIdFromToken();
+            if (!userId) {
+                throw new Error('Usuário não autenticado. Faça login novamente.');
+            }
+
+            const tutorId = await authService.getTutorIdByUserId(userId);
+            if (!tutorId) {
+                throw new Error('Tutor não encontrado. Certifique-se de que seu perfil está completo.');
+            }
+
             // Preparar dados para enviar
             const petData: CreatePetData = {
                 nome: formData.nome,
@@ -76,26 +115,26 @@ export const PetRegisterForm: React.FC<PetRegisterFormProps> = ({ onBackClick })
                 porte: formData.porte,
                 descricao: formData.descricao || undefined,
                 foto: imagePreview || undefined,
+                sexo: formData.sexo ? parseInt(formData.sexo) : undefined,
+                raca: formData.raca ? parseInt(formData.raca) : undefined,
                 doenca_cronica: formData.doenca_cronica,
                 necessidades_especiais: formData.necessidades_especiais,
                 cuidados_constantes: formData.cuidados_constantes,
                 amigavel_outros_animais: formData.amigavel_outros_animais,
                 especie: parseInt(formData.especie),
-                status_pet: 1, // 1 para disponível para adoção
+                status_pet: parseInt(formData.status_pet),
+                tutor: tutorId,
             };
-
-            // Vincular pet ao usuário logado através do token JWT
-            const userId = authService.getUserIdFromToken();
-            if (userId) {
-                petData.tutor = userId;
-            }
 
             // Enviar para a API
             await petService.createPet(petData);
 
-            // Sucesso - volta para a tela anterior
-            alert('Pet cadastrado com sucesso!');
-            onBackClick();
+            // Sucesso - mostra toast e redireciona
+            setShowSuccessToast(true);
+            setTimeout(() => {
+                setShowSuccessToast(false);
+                onBackClick();
+            }, 2000);
         } catch (error: any) {
             console.error('Erro ao cadastrar pet:', error);
             setError(error.message || 'Erro ao cadastrar pet. Tente novamente.');
@@ -106,6 +145,17 @@ export const PetRegisterForm: React.FC<PetRegisterFormProps> = ({ onBackClick })
 
     return (
         <div className="flex-1 flex flex-col">
+            {/* Toast de Sucesso */}
+            {showSuccessToast && (
+                <div className="fixed top-4 right-4 bg-green-500 text-white px-6 py-4 rounded-lg shadow-lg z-50 animate-slide-in">
+                    <div className="flex items-center gap-3">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        <span className="font-semibold">Pet cadastrado com sucesso!</span>
+                    </div>
+                </div>
+            )}
             {/* Header */}
             <div className="bg-white px-8 py-6 border-b border-gray-200">
                 <h1 className="text-3xl font-bold text-gray-900">CADASTRAR PET</h1>
@@ -193,19 +243,22 @@ export const PetRegisterForm: React.FC<PetRegisterFormProps> = ({ onBackClick })
                                     className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"
                                     required
                                 />
-                                <input
-                                    type="number"
+                                <select
                                     name="idade"
                                     value={formData.idade}
                                     onChange={handleInputChange}
-                                    placeholder="IDADE (anos)"
-                                    min="0"
-                                    className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"
+                                    className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500 text-gray-500"
                                     required
-                                />
+                                >
+                                    <option value="">IDADE</option>
+                                    <option value="1">FILHOTE</option>
+                                    <option value="2">ADULTO</option>
+                                    <option value="3">IDOSO</option>
+                                    <option value="4">INDIFERENTE</option>
+                                </select>
                             </div>
 
-                            {/* Espécie e Porte */}
+                            {/* Espécie e Sexo */}
                             <div className="flex gap-4">
                                 <select
                                     name="especie"
@@ -215,9 +268,23 @@ export const PetRegisterForm: React.FC<PetRegisterFormProps> = ({ onBackClick })
                                     required
                                 >
                                     <option value="">ESPÉCIE</option>
-                                    <option value="1">CACHORRO</option>
-                                    <option value="2">GATO</option>
+                                    <option value="1">GATO</option>
+                                    <option value="2">CACHORRO</option>
                                 </select>
+                                <select
+                                    name="sexo"
+                                    value={formData.sexo}
+                                    onChange={handleInputChange}
+                                    className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500 text-gray-500"
+                                >
+                                    <option value="">SEXO (OPCIONAL)</option>
+                                    <option value="1">MACHO</option>
+                                    <option value="2">FÊMEA</option>
+                                </select>
+                            </div>
+
+                            {/* Porte e Raça */}
+                            <div className="flex gap-4">
                                 <select
                                     name="porte"
                                     value={formData.porte}
@@ -226,9 +293,24 @@ export const PetRegisterForm: React.FC<PetRegisterFormProps> = ({ onBackClick })
                                     required
                                 >
                                     <option value="">PORTE</option>
-                                    <option value="Pequeno">PEQUENO</option>
-                                    <option value="Medio">MÉDIO</option>
-                                    <option value="Grande">GRANDE</option>
+                                    <option value="1">PEQUENO</option>
+                                    <option value="2">MÉDIO</option>
+                                    <option value="3">GRANDE</option>
+                                    <option value="4">MUITO GRANDE</option>
+                                </select>
+                                <select
+                                    name="raca"
+                                    value={formData.raca}
+                                    onChange={handleInputChange}
+                                    className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500 text-gray-500"
+                                    disabled={!formData.especie}
+                                >
+                                    <option value="">RAÇA (OPCIONAL)</option>
+                                    {racasFiltradas.map(raca => (
+                                        <option key={raca.id_raca_pet} value={raca.id_raca_pet}>
+                                            {raca.raca}
+                                        </option>
+                                    ))}
                                 </select>
                             </div>
 

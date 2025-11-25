@@ -39,7 +39,7 @@ export default function HeuristicPage({ onPetClick }: HeuristicPageProps) {
             const userId = payload.user_id;
 
             const response = await fetch(
-                `http://127.0.0.1:8000/api/pet/4/heuristica/`,
+                `http://127.0.0.1:8000/api/pet/${userId}/heuristica/`,
                 {
                     method: 'GET',
                     headers: {
@@ -101,7 +101,7 @@ export default function HeuristicPage({ onPetClick }: HeuristicPageProps) {
                                     <PetCard
                                         key={pet.id_pet}
                                         name={pet.nome}
-                                        especie={pet.especie === 3 ? "CACHORRO" : pet.especie === 4 ? "GATO" : "OUTRO"}
+                                        especie={pet.especie === 1 ? "GATO" : pet.especie === 2 ? "CACHORRO" : "OUTRO"}
                                         imageUrl={pet.foto || ""}
                                         onClick={() => onPetClick(pet)}
                                         score={pet.score}

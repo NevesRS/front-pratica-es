@@ -59,6 +59,9 @@ export default function MyPetsPage({ onBackClick, onAddPetClick, onEditPet }: My
             // Buscar pets do usuário
             const userPetsData = await petService.getPetsByTutor(userId);
 
+            // Buscar todas as raças para fazer o mapeamento
+            const racas = await petService.getRacas();
+
             // Converter formato da API para formato do componente
             const convertedPets: UserPet[] = userPetsData.map(pet => {
                 // Mapear idade
@@ -83,16 +86,25 @@ export default function MyPetsPage({ onBackClick, onAddPetClick, onEditPet }: My
                     2: "FÊMEA"
                 };
 
+                // Buscar nome da raça
+                let breedName = "SRD";
+                if (pet.raca) {
+                    const racaEncontrada = racas.find(r => r.id_raca_pet === pet.raca);
+                    if (racaEncontrada) {
+                        breedName = racaEncontrada.raca;
+                    }
+                }
+
                 return {
                     id: pet.id_pet,
                     name: pet.nome.toUpperCase(),
-                    breed: pet.raca ? `${pet.raca}` : "SRD",
+                    breed: breedName,
                     gender: genderMap[pet.sexo || 0] || "DESCONHECIDO",
                     size: sizeMap[Number(pet.porte)] || "DESCONHECIDO",
                     location: "",
                     imageUrl: pet.foto || "",
                     age: ageMap[pet.idade] || "DESCONHECIDO",
-                    type: pet.especie === 3 ? "Cachorro" : "Gato",
+                    type: pet.especie === 1 ? "Gato" : "Cachorro",
                     description: pet.descricao || "",
                     temperament: pet.amigavel_outros_animais ? "Amigável com outros animais" : "Prefere estar sozinho",
                     veterinaryCare: [

@@ -16,6 +16,7 @@ import { UserPet } from "../components/pets/MyPetsPage";
 import ErrorScreen from "../components/auth/ErrorScreen";
 import { petService, Pet } from "../services/petService";
 import HeuristicPage from "../components/pets/HeuristicPage";
+import { PreferencesPage } from "../components/pets/PreferencesPage";
 
 // -----------------------------------------------------------
 // 2. COMPONENTES REUTILIZÁVEIS
@@ -36,6 +37,7 @@ function HomeContent() {
     const [isMyPetsView, setIsMyPetsView] = useState(false);
     const [isPetRegisterView, setIsPetRegisterView] = useState(false);
     const [isHeuristicView, setIsHeuristicView] = useState(false);
+    const [isPreferencesView, setIsPreferencesView] = useState(false);
 
     // Estado para controlar a tela de erro
     const [isErrorView, setIsErrorView] = useState(false);
@@ -140,6 +142,17 @@ function HomeContent() {
         setIsMyPetsView(false);
         setIsRegisterView(false);
         setIsPetRegisterView(false);
+        setIsHeuristicView(false);
+        setIsPreferencesView(false);
+        setIsErrorView(false);
+        // Limpar filtros e busca
+        setFilters({
+            especie: '',
+            raca: '',
+            porte: '',
+            sexo: ''
+        });
+        setSearchTerm('');
     };
 
     // Função para mostrar a tela de cadastro
@@ -163,6 +176,7 @@ function HomeContent() {
     const handleBackFromPetRegister = () => {
         setIsPetRegisterView(false);
         setIsMyPetsView(true); // Volta para Meus Pets
+        loadPets(); // Recarrega a lista de pets
     };
 
     // Função para mostrar Meus Pets
@@ -171,6 +185,7 @@ function HomeContent() {
         setIsPetRegisterView(false);
         setIsLoginView(false);
         setIsRegisterView(false);
+        setIsHeuristicView(false);
     };
 
     // Função para voltar à tela de pesquisa
@@ -181,11 +196,24 @@ function HomeContent() {
         setIsPetRegisterView(false);
         setIsErrorView(false);
         setIsHeuristicView(false);
+        setIsPreferencesView(false);
     };
 
     // Função para mostrar a tela de sugestões
     const handleHeuristicClick = () => {
         setIsHeuristicView(true);
+        setIsLoginView(false);
+        setIsMyPetsView(false);
+        setIsRegisterView(false);
+        setIsPetRegisterView(false);
+        setIsErrorView(false);
+        setIsPreferencesView(false);
+    };
+
+    // Função para mostrar a tela de preferências
+    const handlePreferencesClick = () => {
+        setIsPreferencesView(true);
+        setIsHeuristicView(false);
         setIsLoginView(false);
         setIsMyPetsView(false);
         setIsRegisterView(false);
@@ -231,14 +259,28 @@ function HomeContent() {
             // Buscar detalhes completos do pet
             const petDetails = await petService.getPetById(petId);
 
+            // Buscar nome da raça se o pet tiver uma
+            let breedName = "SRD";
+            if (petDetails.raca) {
+                try {
+                    const racas = await petService.getRacas();
+                    const racaEncontrada = racas.find(r => r.id_raca_pet === petDetails.raca);
+                    if (racaEncontrada) {
+                        breedName = racaEncontrada.raca;
+                    }
+                } catch (error) {
+                    console.error('Erro ao buscar raça:', error);
+                }
+            }
+
             // Converter o formato da API para o formato do modal
             const petForModal: PetDetails = {
                 id: petDetails.id_pet,
                 name: petDetails.nome.toUpperCase(),
                 location: "RS",
                 imageUrl: petDetails.foto || "https://images.unsplash.com/photo-1548247425-a6e54f979145?w=500&auto=format&fit=crop",
-                type: petDetails.especie === 3 ? "Cachorro" : "Gato",
-                breed: "SRD",
+                type: petDetails.especie === 1 ? "Gato" : "Cachorro",
+                breed: breedName,
                 gender: petDetails.sexo === 1 ? "MACHO" : petDetails.sexo === 2 ? "FÊMEA" : "DESCONHECIDO",
                 size: (() => {
                     const sizeMap: Record<number, string> = {
@@ -315,6 +357,22 @@ function HomeContent() {
             {/* Alterna entre as views */}
             {isPetRegisterView ? (
                 <PetRegisterForm onBackClick={handleBackFromPetRegister} />
+            ) : isPreferencesView ? (
+                <>
+                    <Navbar
+                        isLoginView={false}
+                        onLoginClick={handleLoginClick}
+                        onHomeClick={handleHomeClick}
+                        onRegisterClick={handleRegisterClick}
+                        onMyPetsClick={handleMyPetsClick}
+                        onSearchClick={handleSearchClick}
+                        onHeuristicClick={handleHeuristicClick}
+                        onPreferencesClick={handlePreferencesClick}
+                        currentPage="preferences"
+                        onLogoutCallback={handleHomeClick}
+                    />
+                    <PreferencesPage />
+                </>
             ) : isHeuristicView ? (
                 <>
                     <Navbar
@@ -325,6 +383,7 @@ function HomeContent() {
                         onMyPetsClick={handleMyPetsClick}
                         onSearchClick={handleSearchClick}
                         onHeuristicClick={handleHeuristicClick}
+                        onPreferencesClick={handlePreferencesClick}
                         currentPage="heuristic"
                         onLogoutCallback={handleHomeClick}
                     />
@@ -341,6 +400,7 @@ function HomeContent() {
                         onMyPetsClick={handleMyPetsClick}
                         onSearchClick={handleSearchClick}
                         onHeuristicClick={handleHeuristicClick}
+                        onPreferencesClick={handlePreferencesClick}
                         currentPage="mypets"
                         onLogoutCallback={handleHomeClick}
                     />
@@ -377,6 +437,7 @@ function HomeContent() {
                                 onMyPetsClick={handleMyPetsClick}
                                 onSearchClick={handleSearchClick}
                                 onHeuristicClick={handleHeuristicClick}
+                                onPreferencesClick={handlePreferencesClick}
                                 currentPage="search"
                                 onLogoutCallback={handleHomeClick}
                             />
@@ -485,7 +546,7 @@ function HomeContent() {
                                                 <PetCard
                                                     key={pet.id_pet}
                                                     name={pet.nome.toUpperCase()}
-                                                    especie={pet.especie === 3 ? "CACHORRO" : pet.especie === 4 ? "GATO" : "OUTRO"}
+                                                    especie={pet.especie === 1 ? "GATO" : pet.especie === 2 ? "CACHORRO" : "OUTRO"}
                                                     imageUrl={pet.foto || "https://images.unsplash.com/photo-1548247425-a6e54f979145?w=500&auto=format&fit=crop"}
                                                     onClick={() => handlePetClick(pet)}
                                                 />

@@ -2,7 +2,7 @@
 import API_CONFIG from '../config/api';
 
 interface LoginCredentials {
-    username: string;
+    email: string;
     password: string;
 }
 
@@ -23,6 +23,7 @@ interface RegisterData {
     nome: string;
     email: string;
     telefone: string;
+    password: string;
 }
 
 interface RegisterResponse {
@@ -76,6 +77,33 @@ class AuthService {
         return decoded?.user_id || decoded?.id || null;
     }
 
+    // Busca o ID do tutor a partir do user_id
+    async getTutorIdByUserId(userId: number): Promise<number | null> {
+        try {
+            const token = this.getAccessToken();
+            if (!token) return null;
+
+            const response = await fetch(`${this.baseUrl}${API_CONFIG.ENDPOINTS.TUTOR_BY_USER_ID(userId)}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                console.error('Erro ao buscar tutor:', response.status);
+                return null;
+            }
+
+            const data = await response.json();
+            return data?.id_tutor || null;
+        } catch (error) {
+            console.error('Erro ao buscar tutor:', error);
+            return null;
+        }
+    }
+
     // Obtém o username do token
     getUsernameFromToken(): string | null {
         if (!this.accessToken) {
@@ -88,13 +116,29 @@ class AuthService {
         return decoded?.username || decoded?.email || null;
     }
 
+    // Obtém o perfil do usuário do token (adotante ou tutor)
+    getUserProfileFromToken(): 'adotante' | 'tutor' | null {
+        if (!this.accessToken) {
+            const token = typeof window !== 'undefined' ? localStorage.getItem('access_token') : null;
+            if (!token) return null;
+            this.accessToken = token;
+        }
+
+        const decoded = this.decodeToken(this.accessToken);
+        // O token usa "role" com valores "ADOTANTE" ou "TUTOR"
+        const role = decoded?.role;
+        if (role === 'ADOTANTE') return 'adotante';
+        if (role === 'TUTOR') return 'tutor';
+        return null;
+    }
+
     async login(credentials: LoginCredentials): Promise<LoginResponse> {
         try {
             // Adiciona timeout para evitar loading infinito
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 segundos
 
-            const response = await fetch(`${this.baseUrl}${API_CONFIG.ENDPOINTS.TOKEN}`, {
+            const response = await fetch(`${this.baseUrl}${API_CONFIG.ENDPOINTS.LOGIN}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

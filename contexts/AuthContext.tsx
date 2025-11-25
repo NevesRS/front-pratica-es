@@ -6,7 +6,7 @@ import { authService } from '../services/authService';
 type AuthContextType = {
     isLoggedIn: boolean;
     isLoading: boolean;
-    login: (username: string, password: string) => Promise<void>;
+    login: (email: string, password: string) => Promise<void>;
     logout: (onLogoutCallback?: () => void) => void;
     user: { username: string } | null;
 };
@@ -35,18 +35,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         checkAuth();
     }, []);
 
-    const login = async (username: string, password: string) => {
+    const login = async (email: string, password: string) => {
         setIsLoading(true);
         console.log('AuthContext: Iniciando login...');
 
         try {
-            const response = await authService.login({ username, password });
+            const response = await authService.login({ email, password });
             console.log('AuthContext: Login bem-sucedido', response);
             setIsLoggedIn(true);
 
             // Obtém o username do token JWT
             const usernameFromToken = authService.getUsernameFromToken();
-            setUser({ username: usernameFromToken || username });
+            setUser({ username: usernameFromToken || email });
         } catch (error) {
             console.error('AuthContext: Erro capturado no login:', error);
 
