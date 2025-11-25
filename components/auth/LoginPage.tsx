@@ -5,9 +5,10 @@ type LoginPageProps = {
     onBackClick?: () => void;
     onRegisterClick?: () => void;
     onError?: (errorMessage: string) => void;
+    onLoginSuccess?: (userProfile: 'adotante' | 'tutor') => void;
 };
 
-export default function LoginPage({ onBackClick, onRegisterClick, onError }: LoginPageProps) {
+export default function LoginPage({ onBackClick, onRegisterClick, onError, onLoginSuccess }: LoginPageProps) {
     const { login, isLoading } = useAuth();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -29,8 +30,15 @@ export default function LoginPage({ onBackClick, onRegisterClick, onError }: Log
             console.log('LoginPage: Chamando login com:', { email, password: '***' });
             await login(email, password);
             console.log('LoginPage: Login bem-sucedido');
-            if (onBackClick) {
-                onBackClick(); // Volta para a tela inicial após login
+
+            // Verificar o perfil do usuário após login
+            const { authService } = await import('../../services/authService');
+            const userProfile = authService.getUserProfileFromToken();
+
+            if (onLoginSuccess && userProfile) {
+                onLoginSuccess(userProfile);
+            } else if (onBackClick) {
+                onBackClick(); // Fallback para voltar à tela inicial
             }
         } catch (error) {
             console.error("LoginPage: Erro capturado no handleLogin:", error);

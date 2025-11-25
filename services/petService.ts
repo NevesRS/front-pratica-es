@@ -120,9 +120,10 @@ class PetService {
         }
     }
 
-    async getPetsWithFilters(queryString: string = ''): Promise<Pet[]> {
+    async getPetsWithFilters(queryString: string = '', onlyAvailable: boolean = false): Promise<Pet[]> {
         try {
-            const url = `${API_CONFIG.BASE_URL}${API_CONFIG.ENDPOINTS.PETS}${queryString}`;
+            const endpoint = onlyAvailable ? '/api/pet/disponiveis/' : API_CONFIG.ENDPOINTS.PETS;
+            const url = `${API_CONFIG.BASE_URL}${endpoint}${queryString}`;
             const response = await fetch(url, {
                 method: 'GET',
                 headers: this.getAuthHeaders(),

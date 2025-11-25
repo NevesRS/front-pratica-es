@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
 import Modal from "../ui/Modal";
+import { authService } from "@/services/authService";
 
 export type PetDetails = {
     id: number;
@@ -34,6 +35,81 @@ type PetDetailsModalProps = {
 };
 
 export default function PetDetailsModal({ isOpen, onClose, pet, isLoading = false }: PetDetailsModalProps) {
+    const [isAdopting, setIsAdopting] = useState(false);
+    const [showToast, setShowToast] = useState(false);
+    const [toastMessage, setToastMessage] = useState('');
+    const [toastType, setToastType] = useState<'success' | 'error'>('success');
+
+    const showToastMessage = (message: string, type: 'success' | 'error' = 'success') => {
+        setToastMessage(message);
+        setToastType(type);
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+    };
+
+    const handleAdotar = async () => {
+        if (!pet) return;
+
+        try {
+            setIsAdopting(true);
+
+            // Obter o ID do adotante do token
+            const userId = authService.getUserIdFromToken();
+            if (!userId) {
+                showToastMessage('Você precisa estar logado como adotante para adotar um pet', 'error');
+                return;
+            }
+
+            // Buscar o ID do adotante pelo user ID
+            const adotanteResponse = await fetch(`http://127.0.0.1:8000/api/adotante/usuario/${userId}/`, {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+                },
+            });
+
+            if (!adotanteResponse.ok) {
+                throw new Error('Erro ao buscar dados do adotante');
+            }
+
+            const adotanteData = await adotanteResponse.json();
+            const adotanteId = adotanteData.id; // API retorna 'id' ao invés de 'id_adotante'
+
+            if (!adotanteId) {
+                throw new Error('ID do adotante não encontrado');
+            }
+
+            // Criar a adoção
+            const response = await fetch('http://127.0.0.1:8000/api/adocao/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+                },
+                body: JSON.stringify({
+                    data_adocao: new Date().toISOString().split('T')[0],
+                    status: 1, // 1 - Em Andamento
+                    pet: pet.id,
+                    adotante: adotanteId,
+                }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Erro ao criar adoção');
+            }
+
+            showToastMessage('Solicitação de adoção enviada com sucesso!', 'success');
+            setTimeout(() => {
+                onClose();
+            }, 2000);
+        } catch (error: any) {
+            console.error('Erro ao criar adoção:', error);
+            showToastMessage(error.message || 'Erro ao criar adoção', 'error');
+        } finally {
+            setIsAdopting(false);
+        }
+    };
+
     return (
         <Modal isOpen={isOpen} onClose={onClose}>
             <div className="p-6 pb-8">
@@ -138,12 +214,26 @@ export default function PetDetailsModal({ isOpen, onClose, pet, isLoading = fals
 
                             {/* Botão Quero Adotar no final */}
                             <div className="text-center mb-4">
-                                <button className="w-full bg-gray-100 text-2xl font-bold text-gray-800 py-6 px-6 rounded-xl transform transition duration-200 ease-in-out hover:bg-gray-300">
-                                    QUERO ADOTAR
+                                <button
+                                    onClick={handleAdotar}
+                                    disabled={isAdopting}
+                                    className="w-full bg-red-500 text-2xl font-bold text-white py-6 px-6 rounded-xl transition duration-200 ease-in-out hover:bg-red-600 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {isAdopting ? 'PROCESSANDO...' : 'ADOTAR'}
                                 </button>
                             </div>
                         </div>
                     </>
+                )}
+
+                {/* Toast de Notificação */}
+                {showToast && (
+                    <div className="fixed top-4 right-4 z-[60] animate-slide-in">
+                        <div className={`px-6 py-4 rounded-lg shadow-lg ${toastType === 'success' ? 'bg-green-500' : 'bg-red-500'
+                            } text-white font-bold`}>
+                            {toastMessage}
+                        </div>
+                    </div>
                 )}
             </div>
         </Modal>

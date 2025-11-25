@@ -37,6 +37,14 @@ export default function MyPetsPage({ onBackClick, onAddPetClick, onEditPet }: My
     const [pets, setPets] = useState<UserPet[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string>('');
+    const [searchTerm, setSearchTerm] = useState('');
+    const [filteredPets, setFilteredPets] = useState<UserPet[]>([]);
+    const [filters, setFilters] = useState({
+        especie: '',
+        raca: '',
+        porte: '',
+        sexo: ''
+    });
 
     useEffect(() => {
         loadUserPets();
@@ -117,6 +125,7 @@ export default function MyPetsPage({ onBackClick, onAddPetClick, onEditPet }: My
             });
 
             setPets(convertedPets);
+            setFilteredPets(convertedPets);
         } catch (error: any) {
             console.error('Erro ao buscar pets do usuário:', error);
             setError(error.message || 'Erro ao carregar seus pets');
@@ -125,65 +134,196 @@ export default function MyPetsPage({ onBackClick, onAddPetClick, onEditPet }: My
         }
     };
 
+    // Filtrar pets quando o termo de busca ou filtros mudarem
+    useEffect(() => {
+        let result = [...pets];
+
+        // Filtro de busca por nome
+        if (searchTerm.trim() !== '') {
+            result = result.filter(pet =>
+                pet.name.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+        }
+
+        // Filtro de espécie
+        if (filters.especie) {
+            const especieNome = filters.especie === '1' ? 'Gato' : 'Cachorro';
+            result = result.filter(pet => pet.type === especieNome);
+        }
+
+        // Filtro de porte
+        if (filters.porte) {
+            const porteMap: Record<string, string> = {
+                '1': 'PEQUENO',
+                '2': 'MÉDIO',
+                '3': 'GRANDE',
+                '4': 'MUITO GRANDE'
+            };
+            const porteNome = porteMap[filters.porte];
+            result = result.filter(pet => pet.size === porteNome);
+        }
+
+        // Filtro de sexo
+        if (filters.sexo) {
+            const sexoMap: Record<string, string> = {
+                '1': 'MACHO',
+                '2': 'FÊMEA'
+            };
+            const sexoNome = sexoMap[filters.sexo];
+            result = result.filter(pet => pet.gender === sexoNome);
+        }
+
+        setFilteredPets(result);
+    }, [searchTerm, filters, pets]);
+
     return (
         <div className="bg-gray-50 min-h-screen">
-            {/* Conteúdo principal */}
-            <div className="container mx-auto px-8 py-8">
-                {/* Botão Cadastrar Pet */}
-                <div className="mb-8 flex justify-start">
-                    <button
-                        onClick={onAddPetClick}
-                        className="bg-red-300 text-black font-bold py-3 px-6 rounded-full flex items-center gap-2 hover:bg-red-400 transition duration-200"
-                    >
-                        <span className="text-xl">+</span>
-                        CADASTRAR PET
-                    </button>
-                </div>
+            {/* Header da página */}
+            <div className="bg-white px-8 py-6 border-b border-gray-200">
+                <h1 className="text-3xl font-bold text-gray-900">MEUS PETS</h1>
+            </div>
 
-                {/* Estado de carregamento */}
-                {loading && (
-                    <div className="text-center py-8">
-                        <p className="text-gray-600">Carregando seus pets...</p>
-                    </div>
-                )}
-
-                {/* Estado de erro */}
-                {error && (
-                    <div className="text-center py-8">
-                        <p className="text-red-600">{error}</p>
-                    </div>
-                )}
-
-                {/* Grid de pets */}
-                {!loading && !error && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {pets.map((pet) => (
-                            <div
-                                key={pet.id}
-                                className="bg-white rounded-2xl p-4 shadow-lg border-4 border-red-300 hover:shadow-xl transition duration-200 cursor-pointer"
-                                onClick={() => onEditPet?.(pet)}
+            {/* Conteúdo principal com filtros */}
+            <div className="container mx-auto p-8 flex gap-8">
+                {/* Barra Lateral de Filtros */}
+                <aside className="w-1/4 p-6 bg-white rounded-lg shadow-md border border-gray-300">
+                    <h2 className="text-xl font-bold mb-4">FILTRAR PETS</h2>
+                    <div className="space-y-4">
+                        {/* Filtro de Espécie */}
+                        <div>
+                            <label className="block text-sm font-bold mb-2">ESPÉCIE</label>
+                            <select
+                                value={filters.especie}
+                                onChange={(e) => setFilters(prev => ({ ...prev, especie: e.target.value }))}
+                                className="w-full p-2 border border-gray-300 rounded-lg"
                             >
-                                <div className="flex gap-4">
-                                    {/* Imagem do pet */}
-                                    <div className="w-32 h-32 bg-gray-200 rounded-xl flex items-center justify-center text-gray-500 flex-shrink-0">
-                                        <span className="text-sm">Imagem</span>
-                                    </div>
+                                <option value="">Todas</option>
+                                <option value="1">Gato</option>
+                                <option value="2">Cachorro</option>
+                            </select>
+                        </div>
 
-                                    {/* Informações do pet */}
-                                    <div className="flex-1 space-y-1">
-                                        <h3 className="font-bold text-lg text-gray-900">NOME: {pet.name}</h3>
+                        {/* Filtro de Porte */}
+                        <div>
+                            <label className="block text-sm font-bold mb-2">PORTE</label>
+                            <select
+                                value={filters.porte}
+                                onChange={(e) => setFilters(prev => ({ ...prev, porte: e.target.value }))}
+                                className="w-full p-2 border border-gray-300 rounded-lg"
+                            >
+                                <option value="">Todos</option>
+                                <option value="1">Pequeno</option>
+                                <option value="2">Médio</option>
+                                <option value="3">Grande</option>
+                                <option value="4">Muito Grande</option>
+                            </select>
+                        </div>
 
-                                        <div className="space-y-1 text-sm text-gray-800">
-                                            <div><span className="font-medium">RAÇA:</span> {pet.breed}</div>
-                                            <div><span className="font-medium">SEXO:</span> {pet.gender}</div>
-                                            <div><span className="font-medium">PORTE:</span> {pet.size}</div>
+                        {/* Filtro de Sexo */}
+                        <div>
+                            <label className="block text-sm font-bold mb-2">SEXO</label>
+                            <select
+                                value={filters.sexo}
+                                onChange={(e) => setFilters(prev => ({ ...prev, sexo: e.target.value }))}
+                                className="w-full p-2 border border-gray-300 rounded-lg"
+                            >
+                                <option value="">Todos</option>
+                                <option value="1">Macho</option>
+                                <option value="2">Fêmea</option>
+                            </select>
+                        </div>
+
+                        <button
+                            onClick={() => {
+                                setFilters({ especie: '', raca: '', porte: '', sexo: '' });
+                                setSearchTerm('');
+                            }}
+                            className="w-full bg-gray-200 text-gray-800 py-2 rounded-lg font-bold transform transition duration-200 ease-in-out hover:bg-gray-300 hover:scale-105"
+                        >
+                            LIMPAR FILTROS
+                        </button>
+                    </div>
+                </aside>
+
+                {/* Área de Conteúdo Principal */}
+                <main className="flex-1">
+                    {/* Barra de Pesquisa */}
+                    <div className="mb-6 flex items-center bg-white p-2 rounded-lg shadow-md border border-gray-300">
+                        <input
+                            type="text"
+                            placeholder="Pesquisar por nome do pet..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="flex-1 p-2 focus:outline-none"
+                        />
+                        <button className="bg-red-500 text-white px-4 py-2 rounded-lg font-bold hover:bg-red-600 ml-2">
+                            🔍
+                        </button>
+                    </div>
+
+                    {/* Botão Cadastrar Pet */}
+                    <div className="mb-6 flex justify-start">
+                        <button
+                            onClick={onAddPetClick}
+                            className="bg-red-300 text-black font-bold py-3 px-6 rounded-full flex items-center gap-2 hover:bg-red-400 transition duration-200"
+                        >
+                            <span className="text-xl">+</span>
+                            CADASTRAR PET
+                        </button>
+                    </div>
+
+                    {/* Estado de carregamento */}
+                    {loading && (
+                        <div className="text-center py-8">
+                            <p className="text-gray-600">Carregando seus pets...</p>
+                        </div>
+                    )}
+
+                    {/* Estado de erro */}
+                    {error && (
+                        <div className="text-center py-8">
+                            <p className="text-red-600">{error}</p>
+                        </div>
+                    )}
+
+                    {/* Grid de pets */}
+                    {!loading && !error && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {filteredPets.length === 0 ? (
+                                <div className="col-span-2 text-center py-8">
+                                    <p className="text-gray-600">Nenhum pet encontrado com os filtros selecionados.</p>
+                                </div>
+                            ) : (
+                                filteredPets.map((pet) => (
+                                    <div
+                                        key={pet.id}
+                                        className="bg-white rounded-2xl p-4 shadow-lg border-4 border-red-300 hover:shadow-xl transition duration-200 cursor-pointer"
+                                        onClick={() => onEditPet?.(pet)}
+                                    >
+                                        <div className="flex gap-4">
+                                            {/* Imagem do pet */}
+                                            <div className="w-32 h-32 bg-gray-200 rounded-xl flex items-center justify-center text-gray-500 flex-shrink-0">
+                                                <span className="text-sm">Imagem</span>
+                                            </div>
+
+                                            {/* Informações do pet */}
+                                            <div className="flex-1 space-y-1">
+                                                <h3 className="font-bold text-lg text-gray-900">NOME: {pet.name}</h3>
+
+                                                <div className="space-y-1 text-sm text-gray-800">
+                                                    <div><span className="font-medium">ESPÉCIE:</span> {pet.type}</div>
+                                                    <div><span className="font-medium">RAÇA:</span> {pet.breed}</div>
+                                                    <div><span className="font-medium">SEXO:</span> {pet.gender}</div>
+                                                    <div><span className="font-medium">PORTE:</span> {pet.size}</div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
+                                ))
+                            )}
+                        </div>
+                    )}
+                </main>
             </div>
         </div>
     );

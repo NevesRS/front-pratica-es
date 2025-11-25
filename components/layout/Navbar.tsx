@@ -1,4 +1,5 @@
 import React from "react";
+import Image from "next/image";
 import { useAuth } from "../../contexts/AuthContext";
 import { authService } from "../../services/authService";
 
@@ -11,11 +12,12 @@ type NavbarProps = {
     onSearchClick?: () => void;
     onHeuristicClick?: () => void;
     onPreferencesClick?: () => void;
-    currentPage?: 'search' | 'mypets' | 'heuristic' | 'preferences';
+    onAdoptionsClick?: () => void;
+    currentPage?: 'search' | 'mypets' | 'heuristic' | 'preferences' | 'adoptions';
     onLogoutCallback?: () => void;
 };
 
-export default function Navbar({ isLoginView, onLoginClick, onHomeClick, onRegisterClick, onMyPetsClick, onSearchClick, onHeuristicClick, onPreferencesClick, currentPage, onLogoutCallback }: NavbarProps) {
+export default function Navbar({ isLoginView, onLoginClick, onHomeClick, onRegisterClick, onMyPetsClick, onSearchClick, onHeuristicClick, onPreferencesClick, onAdoptionsClick, currentPage, onLogoutCallback }: NavbarProps) {
     const { isLoggedIn, logout } = useAuth();
 
     // Obtém o perfil do usuário (adotante ou tutor)
@@ -37,11 +39,25 @@ export default function Navbar({ isLoginView, onLoginClick, onHomeClick, onRegis
         ? "flex justify-between items-center p-4 bg-orange-100 border-b border-gray-300 w-full"
         : "flex justify-between items-center p-4 bg-orange-100 border-b border-gray-300 w-full";
 
+    const handleLogoClick = () => {
+        if (isLoggedIn && userProfile === 'tutor' && onMyPetsClick) {
+            onMyPetsClick();
+        } else {
+            onHomeClick();
+        }
+    };
+
     return (
         <nav className={navClasses}>
             <div className="flex items-center gap-4">
-                <div className="flex-shrink-0 cursor-pointer" onClick={onHomeClick}>
-                    <div className="w-8 h-8 rounded-full bg-red-200 flex items-center justify-center text-sm font-bold">Logo</div>
+                <div className="flex-shrink-0 cursor-pointer flex items-center" onClick={handleLogoClick}>
+                    <Image
+                        src="/logo.png"
+                        alt="FADA ORG - Ecossistema do Bem Estar Animal"
+                        width={90}
+                        height={20}
+                        className="object-contain"
+                    />
                 </div>
 
                 {/* Navigation links immediately to the right of the logo */}
@@ -60,16 +76,18 @@ export default function Navbar({ isLoginView, onLoginClick, onHomeClick, onRegis
                             </span>
                         )}
 
-                        {/* PESQUISAR - sempre visível */}
-                        <span
-                            className={`font-bold cursor-pointer border-b-2 pb-1 ${currentPage === 'search'
-                                ? 'text-red-500 border-red-500'
-                                : 'text-gray-800 hover:text-red-500 border-transparent'
-                                }`}
-                            onClick={onSearchClick}
-                        >
-                            PESQUISAR
-                        </span>
+                        {/* PESQUISAR - apenas para adotantes */}
+                        {isLoggedIn && userProfile === 'adotante' && (
+                            <span
+                                className={`font-bold cursor-pointer border-b-2 pb-1 ${currentPage === 'search'
+                                    ? 'text-red-500 border-red-500'
+                                    : 'text-gray-800 hover:text-red-500 border-transparent'
+                                    }`}
+                                onClick={onSearchClick}
+                            >
+                                PESQUISAR
+                            </span>
+                        )}
 
                         {/* RECOMENDADOS - apenas para adotantes */}
                         {isLoggedIn && userProfile === 'adotante' && (
@@ -94,6 +112,19 @@ export default function Navbar({ isLoginView, onLoginClick, onHomeClick, onRegis
                                 onClick={onPreferencesClick}
                             >
                                 PREFERÊNCIAS
+                            </span>
+                        )}
+
+                        {/* ADOÇÕES - para adotantes e tutores */}
+                        {isLoggedIn && (userProfile === 'adotante' || userProfile === 'tutor') && (
+                            <span
+                                className={`font-bold cursor-pointer border-b-2 pb-1 ${currentPage === 'adoptions'
+                                    ? 'text-red-500 border-red-500'
+                                    : 'text-gray-800 hover:text-red-500 border-transparent'
+                                    }`}
+                                onClick={onAdoptionsClick}
+                            >
+                                ADOÇÕES
                             </span>
                         )}
                     </div>

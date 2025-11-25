@@ -60,6 +60,15 @@ export default function PetTrackingModal({ isOpen, onClose, petId, pet }: PetTra
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string>('');
     const [isAddTrackingModalOpen, setIsAddTrackingModalOpen] = useState(false);
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [editFormData, setEditFormData] = useState<any>({});
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [isLoadingEdit, setIsLoadingEdit] = useState(false);
+    const [racas, setRacas] = useState<Array<{ id_raca_pet: number, raca: string, especie: number }>>([]);
+    const [showToast, setShowToast] = useState(false);
+    const [toastMessage, setToastMessage] = useState('');
+    const [toastType, setToastType] = useState<'success' | 'error'>('success');
 
     useEffect(() => {
         if (isOpen && petId) {
@@ -97,6 +106,119 @@ export default function PetTrackingModal({ isOpen, onClose, petId, pet }: PetTra
         loadRastreio();
     };
 
+    const handleEditClick = async () => {
+        if (!petId) return;
+
+        try {
+            setIsLoadingEdit(true);
+            setIsEditMode(true);
+
+            // Buscar as raças disponíveis
+            const racasData = await petService.getRacas();
+            setRacas(racasData);
+
+            // Buscar os dados atuais do pet na API
+            const petData = await petService.getPetById(petId);
+
+            setEditFormData({
+                nome: petData.nome,
+                idade: petData.idade,
+                porte: petData.porte,
+                especie: petData.especie,
+                descricao: petData.descricao || '',
+                sexo: petData.sexo || '',
+                raca: petData.raca || '',
+                status_pet: petData.status_pet || 1,
+                doenca_cronica: petData.doenca_cronica || false,
+                necessidades_especiais: petData.necessidades_especiais || false,
+                cuidados_constantes: petData.cuidados_constantes || false,
+                amigavel_outros_animais: petData.amigavel_outros_animais || false,
+            });
+        } catch (error: any) {
+            console.error('Erro ao buscar dados do pet:', error);
+            showToastMessage(error.message || 'Erro ao carregar dados do pet', 'error');
+            setIsEditMode(false);
+        } finally {
+            setIsLoadingEdit(false);
+        }
+    };
+
+    const handleEditSave = async () => {
+        if (!petId) return;
+
+        try {
+            setIsLoadingEdit(true);
+            const response = await fetch(`http://127.0.0.1:8000/api/pet/${petId}/`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+                },
+                body: JSON.stringify(editFormData),
+            });
+
+            if (!response.ok) {
+                throw new Error('Erro ao atualizar pet');
+            }
+
+            showToastMessage('Pet atualizado com sucesso!', 'success');
+            setIsEditMode(false);
+            setTimeout(() => {
+                onClose();
+                window.location.reload();
+            }, 1500);
+        } catch (error: any) {
+            console.error('Erro ao atualizar pet:', error);
+            showToastMessage(error.message || 'Erro ao atualizar pet', 'error');
+        } finally {
+            setIsLoadingEdit(false);
+        }
+    };
+
+    const handleDeleteClick = () => {
+        setShowDeleteConfirm(true);
+    };
+
+    const handleDeleteConfirm = async () => {
+        if (!petId) return;
+
+        try {
+            setIsDeleting(true);
+            const response = await fetch(`http://127.0.0.1:8000/api/pet/${petId}/`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error('Erro ao excluir pet');
+            }
+
+            showToastMessage('Pet excluído com sucesso!', 'success');
+            setShowDeleteConfirm(false);
+            setTimeout(() => {
+                onClose();
+                window.location.reload();
+            }, 1500);
+        } catch (error: any) {
+            console.error('Erro ao excluir pet:', error);
+            showToastMessage(error.message || 'Erro ao excluir pet', 'error');
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+        const { name, value, type } = e.target;
+        if (type === 'checkbox') {
+            const checked = (e.target as HTMLInputElement).checked;
+            setEditFormData((prev: any) => ({ ...prev, [name]: checked }));
+        } else {
+            setEditFormData((prev: any) => ({ ...prev, [name]: value }));
+        }
+    };
+
     if (!pet) return null;
 
     return (
@@ -115,12 +237,26 @@ export default function PetTrackingModal({ isOpen, onClose, petId, pet }: PetTra
                 {/* Header com título */}
                 <div className="mb-8 flex items-center justify-between">
                     <h1 className="text-3xl font-bold text-gray-900">RASTREAR</h1>
-                    <button
-                        onClick={() => setIsAddTrackingModalOpen(true)}
-                        className="bg-green-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-600 transition duration-200"
-                    >
-                        + ADICIONAR STATUS
-                    </button>
+                    <div className="flex gap-3">
+                        <button
+                            onClick={handleEditClick}
+                            className="bg-blue-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-blue-600 transition duration-200"
+                        >
+                            ✏️ EDITAR PET
+                        </button>
+                        <button
+                            onClick={handleDeleteClick}
+                            className="bg-red-600 text-white font-bold py-2 px-6 rounded-lg hover:bg-red-700 transition duration-200"
+                        >
+                            🗑️ EXCLUIR PET
+                        </button>
+                        <button
+                            onClick={() => setIsAddTrackingModalOpen(true)}
+                            className="bg-green-500 text-white font-bold py-2 px-6 rounded-lg hover:bg-green-600 transition duration-200"
+                        >
+                            + ADICIONAR STATUS
+                        </button>
+                    </div>
                 </div>
 
                 {/* Card de rastreamento */}
@@ -291,6 +427,220 @@ export default function PetTrackingModal({ isOpen, onClose, petId, pet }: PetTra
                     petId={petId}
                     onSuccess={handleAddTrackingSuccess}
                 />
+            )}
+
+            {/* Modal de Edição do Pet */}
+            {isEditMode && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+                        <div className="bg-blue-500 p-6 text-white">
+                            <h2 className="text-2xl font-bold">EDITAR PET</h2>
+                        </div>
+
+                        {isLoadingEdit ? (
+                            <div className="p-12 flex flex-col items-center justify-center">
+                                <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-500 mb-4"></div>
+                                <p className="text-gray-600">Carregando dados do pet...</p>
+                            </div>
+                        ) : (
+                            <div className="p-6 space-y-4">
+                                <div>
+                                    <label className="block text-sm font-bold mb-2">Nome do Pet</label>
+                                    <input
+                                        type="text"
+                                        name="nome"
+                                        value={editFormData.nome || ''}
+                                        onChange={handleInputChange}
+                                        placeholder="Nome do Pet"
+                                        className="w-full p-3 border border-gray-300 rounded-lg"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-bold mb-2">Idade</label>
+                                    <select
+                                        name="idade"
+                                        value={editFormData.idade || ''}
+                                        onChange={handleInputChange}
+                                        className="w-full p-3 border border-gray-300 rounded-lg"
+                                    >
+                                        <option value="1">Filhote</option>
+                                        <option value="2">Adulto</option>
+                                        <option value="3">Idoso</option>
+                                        <option value="4">Indiferente</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-bold mb-2">Porte</label>
+                                    <select
+                                        name="porte"
+                                        value={editFormData.porte || ''}
+                                        onChange={handleInputChange}
+                                        className="w-full p-3 border border-gray-300 rounded-lg"
+                                    >
+                                        <option value="1">Pequeno</option>
+                                        <option value="2">Médio</option>
+                                        <option value="3">Grande</option>
+                                        <option value="4">Muito Grande</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-bold mb-2">Espécie</label>
+                                    <select
+                                        name="especie"
+                                        value={editFormData.especie || ''}
+                                        onChange={handleInputChange}
+                                        className="w-full p-3 border border-gray-300 rounded-lg"
+                                    >
+                                        <option value="1">Gato</option>
+                                        <option value="2">Cachorro</option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-bold mb-2">Raça (Opcional)</label>
+                                    <select
+                                        name="raca"
+                                        value={editFormData.raca || ''}
+                                        onChange={handleInputChange}
+                                        className="w-full p-3 border border-gray-300 rounded-lg"
+                                    >
+                                        <option value="">Sem raça definida</option>
+                                        {racas
+                                            .filter(raca => !editFormData.especie || raca.especie === Number(editFormData.especie))
+                                            .map(raca => (
+                                                <option key={raca.id_raca_pet} value={raca.id_raca_pet}>
+                                                    {raca.raca}
+                                                </option>
+                                            ))
+                                        }
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-bold mb-2">Descrição</label>
+                                    <textarea
+                                        name="descricao"
+                                        value={editFormData.descricao || ''}
+                                        onChange={handleInputChange}
+                                        placeholder="Descrição"
+                                        rows={3}
+                                        className="w-full p-3 border border-gray-300 rounded-lg"
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="flex items-center gap-2">
+                                        <input
+                                            type="checkbox"
+                                            name="doenca_cronica"
+                                            checked={editFormData.doenca_cronica || false}
+                                            onChange={handleInputChange}
+                                            className="w-5 h-5"
+                                        />
+                                        <span>Doença Crônica</span>
+                                    </label>
+
+                                    <label className="flex items-center gap-2">
+                                        <input
+                                            type="checkbox"
+                                            name="necessidades_especiais"
+                                            checked={editFormData.necessidades_especiais || false}
+                                            onChange={handleInputChange}
+                                            className="w-5 h-5"
+                                        />
+                                        <span>Necessidades Especiais</span>
+                                    </label>
+
+                                    <label className="flex items-center gap-2">
+                                        <input
+                                            type="checkbox"
+                                            name="cuidados_constantes"
+                                            checked={editFormData.cuidados_constantes || false}
+                                            onChange={handleInputChange}
+                                            className="w-5 h-5"
+                                        />
+                                        <span>Cuidados Constantes</span>
+                                    </label>
+
+                                    <label className="flex items-center gap-2">
+                                        <input
+                                            type="checkbox"
+                                            name="amigavel_outros_animais"
+                                            checked={editFormData.amigavel_outros_animais || false}
+                                            onChange={handleInputChange}
+                                            className="w-5 h-5"
+                                        />
+                                        <span>Amigável com Outros Animais</span>
+                                    </label>
+                                </div>
+
+                                <div className="flex gap-3 mt-6">
+                                    <button
+                                        onClick={handleEditSave}
+                                        disabled={isLoadingEdit}
+                                        className="flex-1 bg-blue-500 text-white font-bold py-3 rounded-lg hover:bg-blue-600 disabled:opacity-50"
+                                    >
+                                        {isLoadingEdit ? 'SALVANDO...' : 'SALVAR'}
+                                    </button>
+                                    <button
+                                        onClick={() => setIsEditMode(false)}
+                                        className="flex-1 bg-gray-300 text-gray-700 font-bold py-3 rounded-lg hover:bg-gray-400"
+                                    >
+                                        CANCELAR
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* Modal de Confirmação de Exclusão */}
+            {showDeleteConfirm && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-4">
+                        <div className="bg-red-600 p-6 text-white">
+                            <h2 className="text-2xl font-bold">⚠️ CONFIRMAR EXCLUSÃO</h2>
+                        </div>
+
+                        <div className="p-6">
+                            <p className="text-gray-700 mb-6">
+                                Tem certeza que deseja excluir <strong>{pet?.nome}</strong>?
+                                Esta ação não pode ser desfeita.
+                            </p>
+
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={handleDeleteConfirm}
+                                    disabled={isDeleting}
+                                    className="flex-1 bg-red-600 text-white font-bold py-3 rounded-lg hover:bg-red-700 disabled:opacity-50"
+                                >
+                                    {isDeleting ? 'EXCLUINDO...' : 'SIM, EXCLUIR'}
+                                </button>
+                                <button
+                                    onClick={() => setShowDeleteConfirm(false)}
+                                    disabled={isDeleting}
+                                    className="flex-1 bg-gray-300 text-gray-700 font-bold py-3 rounded-lg hover:bg-gray-400"
+                                >
+                                    CANCELAR
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Toast de Notificação */}
+            {showToast && (
+                <div className="fixed top-4 right-4 z-[60] animate-slide-in">
+                    <div className={`px-6 py-4 rounded-lg shadow-lg ${toastType === 'success' ? 'bg-green-500' : 'bg-red-500'
+                        } text-white font-bold`}>
+                        {toastMessage}
+                    </div>
+                </div>
             )}
         </Modal>
     );

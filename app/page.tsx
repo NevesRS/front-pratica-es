@@ -17,6 +17,9 @@ import ErrorScreen from "../components/auth/ErrorScreen";
 import { petService, Pet } from "../services/petService";
 import HeuristicPage from "../components/pets/HeuristicPage";
 import { PreferencesPage } from "../components/pets/PreferencesPage";
+import AdoptionsPage from "../components/pets/AdoptionsPage";
+import TutorAdoptionsPage from "../components/pets/TutorAdoptionsPage";
+import { authService } from "../services/authService";
 
 // -----------------------------------------------------------
 // 2. COMPONENTES REUTILIZÁVEIS
@@ -38,6 +41,7 @@ function HomeContent() {
     const [isPetRegisterView, setIsPetRegisterView] = useState(false);
     const [isHeuristicView, setIsHeuristicView] = useState(false);
     const [isPreferencesView, setIsPreferencesView] = useState(false);
+    const [isAdoptionsView, setIsAdoptionsView] = useState(false);
 
     // Estado para controlar a tela de erro
     const [isErrorView, setIsErrorView] = useState(false);
@@ -96,6 +100,11 @@ function HomeContent() {
             setPetsLoading(true);
             setPetsError(null);
 
+            // Verificar se o usuário é tutor (pode ver todos os pets)
+            // Usuários não logados e adotantes veem apenas pets disponíveis
+            const userProfile = authService.getUserProfileFromToken();
+            const onlyAvailable = userProfile !== 'tutor';
+
             // Construir query params baseados nos filtros
             const params = new URLSearchParams();
             if (filters.especie) params.append('especie', filters.especie);
@@ -106,7 +115,7 @@ function HomeContent() {
             const queryString = params.toString();
             const url = queryString ? `?${queryString}` : '';
 
-            const data = await petService.getPetsWithFilters(url);
+            const data = await petService.getPetsWithFilters(url, onlyAvailable);
             setPets(data);
             setFilteredPets(data);
         } catch (error: any) {
@@ -144,6 +153,7 @@ function HomeContent() {
         setIsPetRegisterView(false);
         setIsHeuristicView(false);
         setIsPreferencesView(false);
+        setIsAdoptionsView(false);
         setIsErrorView(false);
         // Limpar filtros e busca
         setFilters({
@@ -186,6 +196,7 @@ function HomeContent() {
         setIsLoginView(false);
         setIsRegisterView(false);
         setIsHeuristicView(false);
+        setIsAdoptionsView(false);
     };
 
     // Função para voltar à tela de pesquisa
@@ -197,6 +208,7 @@ function HomeContent() {
         setIsErrorView(false);
         setIsHeuristicView(false);
         setIsPreferencesView(false);
+        setIsAdoptionsView(false);
     };
 
     // Função para mostrar a tela de sugestões
@@ -208,11 +220,25 @@ function HomeContent() {
         setIsPetRegisterView(false);
         setIsErrorView(false);
         setIsPreferencesView(false);
+        setIsAdoptionsView(false);
     };
 
     // Função para mostrar a tela de preferências
     const handlePreferencesClick = () => {
         setIsPreferencesView(true);
+        setIsHeuristicView(false);
+        setIsLoginView(false);
+        setIsMyPetsView(false);
+        setIsRegisterView(false);
+        setIsPetRegisterView(false);
+        setIsErrorView(false);
+        setIsAdoptionsView(false);
+    };
+
+    // Função para mostrar a tela de adoções
+    const handleAdoptionsClick = () => {
+        setIsAdoptionsView(true);
+        setIsPreferencesView(false);
         setIsHeuristicView(false);
         setIsLoginView(false);
         setIsMyPetsView(false);
@@ -357,6 +383,27 @@ function HomeContent() {
             {/* Alterna entre as views */}
             {isPetRegisterView ? (
                 <PetRegisterForm onBackClick={handleBackFromPetRegister} />
+            ) : isAdoptionsView ? (
+                <>
+                    <Navbar
+                        isLoginView={false}
+                        onLoginClick={handleLoginClick}
+                        onHomeClick={handleHomeClick}
+                        onRegisterClick={handleRegisterClick}
+                        onMyPetsClick={handleMyPetsClick}
+                        onSearchClick={handleSearchClick}
+                        onHeuristicClick={handleHeuristicClick}
+                        onPreferencesClick={handlePreferencesClick}
+                        onAdoptionsClick={handleAdoptionsClick}
+                        currentPage="adoptions"
+                        onLogoutCallback={handleHomeClick}
+                    />
+                    {authService.getUserProfileFromToken() === 'tutor' ? (
+                        <TutorAdoptionsPage />
+                    ) : (
+                        <AdoptionsPage />
+                    )}
+                </>
             ) : isPreferencesView ? (
                 <>
                     <Navbar
@@ -368,6 +415,7 @@ function HomeContent() {
                         onSearchClick={handleSearchClick}
                         onHeuristicClick={handleHeuristicClick}
                         onPreferencesClick={handlePreferencesClick}
+                        onAdoptionsClick={handleAdoptionsClick}
                         currentPage="preferences"
                         onLogoutCallback={handleHomeClick}
                     />
@@ -384,6 +432,7 @@ function HomeContent() {
                         onSearchClick={handleSearchClick}
                         onHeuristicClick={handleHeuristicClick}
                         onPreferencesClick={handlePreferencesClick}
+                        onAdoptionsClick={handleAdoptionsClick}
                         currentPage="heuristic"
                         onLogoutCallback={handleHomeClick}
                     />
@@ -401,6 +450,7 @@ function HomeContent() {
                         onSearchClick={handleSearchClick}
                         onHeuristicClick={handleHeuristicClick}
                         onPreferencesClick={handlePreferencesClick}
+                        onAdoptionsClick={handleAdoptionsClick}
                         currentPage="mypets"
                         onLogoutCallback={handleHomeClick}
                     />
@@ -425,6 +475,13 @@ function HomeContent() {
                             onBackClick={handleHomeClick}
                             onRegisterClick={handleRegisterClick}
                             onError={handleLoginError}
+                            onLoginSuccess={(userProfile) => {
+                                if (userProfile === 'tutor') {
+                                    handleMyPetsClick();
+                                } else {
+                                    handleHomeClick();
+                                }
+                            }}
                         />
                     ) : (
                         <>
@@ -438,6 +495,7 @@ function HomeContent() {
                                 onSearchClick={handleSearchClick}
                                 onHeuristicClick={handleHeuristicClick}
                                 onPreferencesClick={handlePreferencesClick}
+                                onAdoptionsClick={handleAdoptionsClick}
                                 currentPage="search"
                                 onLogoutCallback={handleHomeClick}
                             />
