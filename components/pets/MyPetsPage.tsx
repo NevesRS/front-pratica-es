@@ -301,20 +301,20 @@ export default function MyPetsPage({ onBackClick, onAddPetClick, onEditPet }: My
                                         onClick={() => onEditPet?.(pet)}
                                     >
                                         <div className="flex gap-4">
-                                                {/* Imagem do pet */}
-                                                <div className="w-32 h-32 bg-gray-200 rounded-xl flex items-center justify-center text-gray-500 flex-shrink-0 overflow-hidden">
-                                                    {pet.imageUrl || pet.type ? (
-                                                        (() => {
-                                                            const DOG_URL = 'https://love.doghero.com.br/wp-content/uploads/2018/12/golden-retriever-1.png';
-                                                            const CAT_URL = 'https://marketplace.canva.com/8-1Kc/MAGoQJ8-1Kc/1/tl/canva-ginger-cat-with-paws-raised-in-air-MAGoQJ8-1Kc.jpg';
-                                                            const type = (pet.type || '').toString().toLowerCase();
-                                                            const src = type.includes('cach') || type.includes('dog') ? DOG_URL : type.includes('gat') || type.includes('cat') ? CAT_URL : (pet.imageUrl || '');
-                                                            return src ? <img src={src} alt={`Imagem de ${pet.name}`} className="w-full h-full object-cover" /> : <span className="text-sm">Imagem</span>;
-                                                        })()
-                                                    ) : (
-                                                        <span className="text-sm">Imagem</span>
-                                                    )}
-                                                </div>
+                                            {/* Imagem do pet */}
+                                            <div className="w-32 h-32 bg-gray-200 rounded-xl flex items-center justify-center text-gray-500 flex-shrink-0 overflow-hidden">
+                                                {pet.imageUrl || pet.type ? (
+                                                    (() => {
+                                                        const DOG_URL = 'https://love.doghero.com.br/wp-content/uploads/2018/12/golden-retriever-1.png';
+                                                        const CAT_URL = 'https://marketplace.canva.com/8-1Kc/MAGoQJ8-1Kc/1/tl/canva-ginger-cat-with-paws-raised-in-air-MAGoQJ8-1Kc.jpg';
+                                                        const type = (pet.type || '').toString().toLowerCase();
+                                                        const src = type.includes('cach') || type.includes('dog') ? DOG_URL : type.includes('gat') || type.includes('cat') ? CAT_URL : (pet.imageUrl || '');
+                                                        return src ? <img src={src} alt={`Imagem de ${pet.name}`} className="w-full h-full object-cover" /> : <span className="text-sm">Imagem</span>;
+                                                    })()
+                                                ) : (
+                                                    <span className="text-sm">Imagem</span>
+                                                )}
+                                            </div>
 
                                             {/* Informações do pet */}
                                             <div className="flex-1 space-y-1">
