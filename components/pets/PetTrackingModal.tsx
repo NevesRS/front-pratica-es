@@ -70,6 +70,34 @@ export default function PetTrackingModal({ isOpen, onClose, petId, pet }: PetTra
     const [toastMessage, setToastMessage] = useState('');
     const [toastType, setToastType] = useState<'success' | 'error'>('success');
 
+    const showToastMessage = (message: string, type: 'success' | 'error' = 'success') => {
+        setToastMessage(message);
+        setToastType(type);
+        setShowToast(true);
+        setTimeout(() => setShowToast(false), 3000);
+    };
+
+    const DOG_URL = 'https://love.doghero.com.br/wp-content/uploads/2018/12/golden-retriever-1.png';
+    const CAT_URL = 'https://marketplace.canva.com/8-1Kc/MAGoQJ8-1Kc/1/tl/canva-ginger-cat-with-paws-raised-in-air-MAGoQJ8-1Kc.jpg';
+
+    const getPetImageUrl = (p: UserPet | null) => {
+        if (!p) return '';
+        const type = (p.type || '').toString().toLowerCase();
+        const breed = (p.breed || '').toString().toLowerCase();
+
+        if (type.includes('cach') || type.includes('dog') || breed.includes('cach') || breed.includes('dog')) {
+            return DOG_URL;
+        }
+
+        if (type.includes('gat') || type.includes('cat') || breed.includes('gat') || breed.includes('cat')) {
+            return CAT_URL;
+        }
+
+        if (p.imageUrl && p.imageUrl.trim() !== '') return p.imageUrl;
+
+        return '';
+    };
+
     useEffect(() => {
         if (isOpen && petId) {
             loadRastreio();
@@ -280,13 +308,17 @@ export default function PetTrackingModal({ isOpen, onClose, petId, pet }: PetTra
                         </div>
                     ) : (
                         <div className="flex items-start gap-8">
-                            {/* Foto do pet (placeholder) */}
+                            {/* Foto do pet */}
                             <div className="flex-shrink-0">
-                                <div className="w-36 h-36 rounded-2xl border-4 border-white shadow-lg bg-gray-200 flex items-center justify-center">
-                                    <div className="text-gray-500 text-center">
-                                        <div className="text-4xl mb-2">🐶</div>
-                                        <div className="text-sm font-medium">{pet.name}</div>
-                                    </div>
+                                <div className="w-36 h-36 rounded-2xl border-4 border-white shadow-lg bg-gray-200 overflow-hidden flex items-center justify-center">
+                                    {getPetImageUrl(pet) ? (
+                                        <img src={getPetImageUrl(pet)} alt={`Imagem de ${pet.name}`} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <div className="text-gray-500 text-center">
+                                            <div className="text-4xl mb-2">🐶</div>
+                                            <div className="text-sm font-medium">{pet.name}</div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
@@ -608,7 +640,7 @@ export default function PetTrackingModal({ isOpen, onClose, petId, pet }: PetTra
 
                         <div className="p-6">
                             <p className="text-gray-700 mb-6">
-                                Tem certeza que deseja excluir <strong>{pet?.nome}</strong>?
+                                Tem certeza que deseja excluir <strong>{pet?.name}</strong>?
                                 Esta ação não pode ser desfeita.
                             </p>
 

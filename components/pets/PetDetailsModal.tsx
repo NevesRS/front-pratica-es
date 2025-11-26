@@ -110,6 +110,31 @@ export default function PetDetailsModal({ isOpen, onClose, pet, isLoading = fals
         }
     };
 
+    const DOG_URL = 'https://love.doghero.com.br/wp-content/uploads/2018/12/golden-retriever-1.png';
+    const CAT_URL = 'https://marketplace.canva.com/8-1Kc/MAGoQJ8-1Kc/1/tl/canva-ginger-cat-with-paws-raised-in-air-MAGoQJ8-1Kc.jpg';
+
+    const getPetImageUrl = (p: PetDetails | null) => {
+        if (!p) return '';
+        const type = (p.type || '').toString().toLowerCase();
+        const breed = (p.breed || '').toString().toLowerCase();
+
+        // Detectar cachorro
+        if (type.includes('cach') || type.includes('dog') || breed.includes('cach') || breed.includes('dog')) {
+            return DOG_URL;
+        }
+
+        // Detectar gato
+        if (type.includes('gat') || type.includes('cat') || breed.includes('gat') || breed.includes('cat')) {
+            return CAT_URL;
+        }
+
+        // Caso não seja cão/gato, usar imageUrl se disponível
+        if (p.imageUrl && p.imageUrl.trim() !== '') return p.imageUrl;
+
+        // Fallback simples
+        return '';
+    };
+
     return (
         <Modal isOpen={isOpen} onClose={onClose}>
             <div className="p-6 pb-8">
@@ -147,8 +172,16 @@ export default function PetDetailsModal({ isOpen, onClose, pet, isLoading = fals
                         <div className="space-y-8">
                             {/* Imagem do pet centralizada no topo */}
                             <div className="flex justify-center">
-                                <div className="w-80 h-80 bg-gray-200 rounded-xl flex items-center justify-center text-gray-500 border-2 border-gray-300">
-                                    <span>Imagem do {pet.name}</span>
+                                <div className="w-80 h-80 bg-gray-200 rounded-xl flex items-center justify-center text-gray-500 border-2 border-gray-300 overflow-hidden">
+                                    {getPetImageUrl(pet) ? (
+                                        <img
+                                            src={getPetImageUrl(pet)}
+                                            alt={`Imagem de ${pet.name}`}
+                                            className="w-full h-full object-cover"
+                                        />
+                                    ) : (
+                                        <span>Imagem do {pet.name}</span>
+                                    )}
                                 </div>
                             </div>
 
